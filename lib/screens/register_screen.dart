@@ -15,15 +15,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   bool isLoading = false;
+  bool isPasswordVisible = false;
+  bool isConfirmPasswordVisible = false;
 
   Future<void> _handleRegister() async {
     if (emailController.text.isEmpty ||
         fullNameController.text.isEmpty ||
         usernameController.text.isEmpty ||
-        passwordController.text.isEmpty) {
+        passwordController.text.isEmpty ||
+        confirmPasswordController.text.isEmpty) {
       _showMessage('All fields are required');
+      return;
+    }
+
+    if (passwordController.text != confirmPasswordController.text) {
+      _showMessage('Passwords do not match');
       return;
     }
 
@@ -73,23 +82,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Logo
-                Image.asset(
-                  'assets/images/logo.png',
-                  height: 70,
-                ),
-
+                Image.asset('assets/images/logo.png', height: 70),
                 const SizedBox(height: 20),
-
                 const Text(
                   'Sign up to see photos and videos from your friends.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 15, color: Colors.grey, fontWeight: FontWeight.w500),
                 ),
-
                 const SizedBox(height: 24),
 
                 _inputField('Email', controller: emailController),
@@ -105,8 +104,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   'Password',
                   controller: passwordController,
                   isPassword: true,
+                  isPasswordVisible: isPasswordVisible,
+                  togglePassword: () {
+                    setState(() => isPasswordVisible = !isPasswordVisible);
+                  },
                 ),
+                const SizedBox(height: 12),
 
+                _inputField(
+                  'Confirm Password',
+                  controller: confirmPasswordController,
+                  isPassword: true,
+                  isPasswordVisible: isConfirmPasswordVisible,
+                  togglePassword: () {
+                    setState(() => isConfirmPasswordVisible = !isConfirmPasswordVisible);
+                  },
+                ),
                 const SizedBox(height: 16),
 
                 const Text(
@@ -114,7 +127,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-
                 const SizedBox(height: 16),
 
                 // Sign up button
@@ -125,30 +137,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: isLoading ? null : _handleRegister,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3797EF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: isLoading
                         ? const SizedBox(
                       height: 22,
                       width: 22,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
                         : const Text(
                       'Sign up',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 24),
 
                 // Divider
@@ -157,15 +159,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Expanded(child: Divider()),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        'OR',
-                        style: TextStyle(color: Colors.grey),
-                      ),
+                      child: Text('OR', style: TextStyle(color: Colors.grey)),
                     ),
                     Expanded(child: Divider()),
                   ],
                 ),
-
                 const SizedBox(height: 24),
 
                 // Login link
@@ -175,13 +173,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onTap: () {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const LoginScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                     );
                   },
                 ),
-
                 const SizedBox(height: 30),
               ],
             ),
@@ -195,16 +190,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       String hint, {
         required TextEditingController controller,
         bool isPassword = false,
+        bool isPasswordVisible = false,
+        VoidCallback? togglePassword,
       }) {
     return TextField(
       controller: controller,
-      obscureText: isPassword,
+      obscureText: isPassword ? !isPasswordVisible : false,
       decoration: InputDecoration(
         hintText: hint,
         filled: true,
         fillColor: const Color(0xFFFAFAFA),
-        contentPadding:
-        const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
@@ -213,6 +209,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
         ),
+        suffixIcon: isPassword
+            ? IconButton(
+          icon: Icon(
+            isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+            color: Colors.grey,
+          ),
+          onPressed: togglePassword,
+        )
+            : null,
       ),
     );
   }
