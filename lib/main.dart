@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
       title: 'Instagram Clone',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3797EF), // Instagram blue
+          seedColor: const Color(0xFF3797EF),
         ),
         fontFamily: 'Roboto',
         useMaterial3: true,

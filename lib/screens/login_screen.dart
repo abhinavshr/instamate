@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'register_screen.dart';
+import '../widget/auth_switch_text.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -17,7 +19,7 @@ class LoginScreen extends StatelessWidget {
 
                 // Instagram Logo
                 Image.asset(
-                  'assets/images/logo.png', // change name if needed
+                  'assets/images/logo.png',
                   height: 80,
                 ),
 
@@ -26,7 +28,7 @@ class LoginScreen extends StatelessWidget {
                 // Username / Email
                 TextField(
                   decoration: InputDecoration(
-                    hintText: 'Phone number, username, or email',
+                    hintText: 'Username, or email',
                     filled: true,
                     fillColor: const Color(0xFFFAFAFA),
                     border: OutlineInputBorder(
@@ -119,18 +121,17 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 30),
 
                 // Sign up text
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text("Don't have an account? "),
-                    Text(
-                      'Sign up',
-                      style: TextStyle(
-                        color: Color(0xFF3797EF),
-                        fontWeight: FontWeight.bold,
+                AuthSwitchText(
+                  normalText: "Don't have an account? ",
+                  actionText: "Sign up",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ],
             ),
