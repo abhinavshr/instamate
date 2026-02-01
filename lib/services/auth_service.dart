@@ -35,13 +35,17 @@ class AuthService {
 
   // ---------------- LOGIN ----------------
   static Future<String?> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
-    final response = await AuthApi.login({
-      'email': email,
-      'password': password,
-    });
+    // Check if the identifier looks like an email
+    bool isEmail = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(identifier);
+
+    final requestData = isEmail
+        ? {'email': identifier, 'password': password}
+        : {'username': identifier, 'password': password};
+
+    final response = await AuthApi.login(requestData);
 
     final data = jsonDecode(response.body);
 
