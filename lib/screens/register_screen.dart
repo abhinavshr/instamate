@@ -1,9 +1,60 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../widget/auth_switch_text.dart';
 import 'login_screen.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController fullNameController = TextEditingController();
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  bool isLoading = false;
+
+  Future<void> _handleRegister() async {
+    if (emailController.text.isEmpty ||
+        fullNameController.text.isEmpty ||
+        usernameController.text.isEmpty ||
+        passwordController.text.isEmpty) {
+      _showMessage('All fields are required');
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    final error = await AuthService.register(
+      email: emailController.text.trim(),
+      fullName: fullNameController.text.trim(),
+      username: usernameController.text.trim(),
+      password: passwordController.text,
+    );
+
+    setState(() => isLoading = false);
+
+    if (error == null) {
+      _showMessage('Registration successful');
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    } else {
+      _showMessage(error);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +72,6 @@ class RegisterScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-
                 // Logo
                 Image.asset(
                   'assets/images/logo.png',
@@ -42,34 +92,27 @@ class RegisterScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // Email
-                _inputField('Email'),
-
+                _inputField('Email', controller: emailController),
                 const SizedBox(height: 12),
 
-                // Full Name
-                _inputField('Full Name'),
-
+                _inputField('Full Name', controller: fullNameController),
                 const SizedBox(height: 12),
 
-                // Username
-                _inputField('Username'),
-
+                _inputField('Username', controller: usernameController),
                 const SizedBox(height: 12),
 
-                // Password
-                _inputField('Password', isPassword: true),
+                _inputField(
+                  'Password',
+                  controller: passwordController,
+                  isPassword: true,
+                ),
 
                 const SizedBox(height: 16),
 
-                // Info text
                 const Text(
                   'People who use our service may have uploaded your contact information to Instagram.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
 
                 const SizedBox(height: 16),
@@ -79,14 +122,23 @@ class RegisterScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 45,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: isLoading ? null : _handleRegister,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3797EF),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text(
+                    child: isLoading
+                        ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                        : const Text(
                       'Sign up',
                       style: TextStyle(
                         fontSize: 16,
@@ -117,7 +169,6 @@ class RegisterScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Login link
-                // Login link
                 AuthSwitchText(
                   normalText: "Have an account? ",
                   actionText: "Log in",
@@ -125,7 +176,7 @@ class RegisterScreen extends StatelessWidget {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
+                        builder: (_) => const LoginScreen(),
                       ),
                     );
                   },
@@ -140,9 +191,13 @@ class RegisterScreen extends StatelessWidget {
     );
   }
 
-  // Reusable Input Field
-  Widget _inputField(String hint, {bool isPassword = false}) {
+  Widget _inputField(
+      String hint, {
+        required TextEditingController controller,
+        bool isPassword = false,
+      }) {
     return TextField(
+      controller: controller,
       obscureText: isPassword,
       decoration: InputDecoration(
         hintText: hint,
