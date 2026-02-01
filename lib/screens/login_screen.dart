@@ -15,17 +15,18 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  bool isPasswordVisible = false; // For toggling password visibility
 
   Future<void> _handleLogin() async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      _showMessage('Email and password are required');
+      _showMessage('Email/Username and password are required');
       return;
     }
 
     setState(() => isLoading = true);
 
     final error = await AuthService.login(
-      email: emailController.text.trim(),
+      identifier: emailController.text.trim(),
       password: passwordController.text,
     );
 
@@ -64,11 +65,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 Image.asset('assets/images/logo.png', height: 70),
                 const SizedBox(height: 24),
 
-                _inputField('Email', controller: emailController),
+                // Email/Username input
+                _inputField(
+                  'Email or Username',
+                  controller: emailController,
+                ),
                 const SizedBox(height: 12),
-                _inputField('Password', controller: passwordController, isPassword: true),
+
+                // Password input with show/hide icon
+                _inputField(
+                  'Password',
+                  controller: passwordController,
+                  isPassword: true,
+                  togglePassword: () {
+                    setState(() => isPasswordVisible = !isPasswordVisible);
+                  },
+                  isPasswordVisible: isPasswordVisible,
+                ),
                 const SizedBox(height: 16),
 
+                // Login button
                 SizedBox(
                   width: double.infinity,
                   height: 45,
@@ -118,10 +134,16 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _inputField(String hint, {required TextEditingController controller, bool isPassword = false}) {
+  Widget _inputField(
+      String hint, {
+        required TextEditingController controller,
+        bool isPassword = false,
+        VoidCallback? togglePassword,
+        bool isPasswordVisible = false,
+      }) {
     return TextField(
       controller: controller,
-      obscureText: isPassword,
+      obscureText: isPassword ? !isPasswordVisible : false,
       decoration: InputDecoration(
         hintText: hint,
         filled: true,
@@ -135,6 +157,15 @@ class _LoginScreenState extends State<LoginScreen> {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
         ),
+        suffixIcon: isPassword
+            ? IconButton(
+          icon: Icon(
+            isPasswordVisible ? Icons.visibility_off : Icons.visibility,
+            color: Colors.grey,
+          ),
+          onPressed: togglePassword,
+        )
+            : null,
       ),
     );
   }
