@@ -14,8 +14,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
   bool isLoading = false;
-  bool isPasswordVisible = false; // For toggling password visibility
+  bool isPasswordVisible = false;
 
   Future<void> _handleLogin() async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
@@ -52,8 +53,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -62,52 +64,53 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // Logo
-                Image.asset('assets/images/logo.png', height: 70),
-                const SizedBox(height: 24),
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 70,
+                ),
 
-                // Email/Username input
+                const SizedBox(height: 32),
+
+                // Email / Username
                 _inputField(
-                  'Email or Username',
+                  hint: 'Email or Username',
                   controller: emailController,
                 ),
+
                 const SizedBox(height: 12),
 
-                // Password input with show/hide icon
+                // Password
                 _inputField(
-                  'Password',
+                  hint: 'Password',
                   controller: passwordController,
                   isPassword: true,
-                  togglePassword: () {
-                    setState(() => isPasswordVisible = !isPasswordVisible);
-                  },
                   isPasswordVisible: isPasswordVisible,
+                  togglePassword: () {
+                    setState(() {
+                      isPasswordVisible = !isPasswordVisible;
+                    });
+                  },
                 ),
+
                 const SizedBox(height: 16),
 
-                // Login button
+                // Login Button
                 SizedBox(
                   width: double.infinity,
                   height: 45,
                   child: ElevatedButton(
                     onPressed: isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3797EF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
                     child: isLoading
                         ? const SizedBox(
                       height: 22,
                       width: 22,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                         : const Text(
                       'Log in',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -115,14 +118,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 24),
 
-                // Register link
+                // Switch to Register
                 AuthSwitchText(
                   normalText: "Don't have an account? ",
                   actionText: "Sign up",
                   onTap: () {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const RegisterScreen(),
+                      ),
                     );
                   },
                 ),
@@ -134,34 +139,24 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _inputField(
-      String hint, {
-        required TextEditingController controller,
-        bool isPassword = false,
-        VoidCallback? togglePassword,
-        bool isPasswordVisible = false,
-      }) {
+  Widget _inputField({
+    required String hint,
+    required TextEditingController controller,
+    bool isPassword = false,
+    bool isPasswordVisible = false,
+    VoidCallback? togglePassword,
+  }) {
     return TextField(
       controller: controller,
       obscureText: isPassword ? !isPasswordVisible : false,
       decoration: InputDecoration(
         hintText: hint,
-        filled: true,
-        fillColor: const Color(0xFFFAFAFA),
-        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
-        ),
         suffixIcon: isPassword
             ? IconButton(
           icon: Icon(
-            isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-            color: Colors.grey,
+            isPasswordVisible
+                ? Icons.visibility_off
+                : Icons.visibility,
           ),
           onPressed: togglePassword,
         )
