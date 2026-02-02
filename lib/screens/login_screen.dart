@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:instamate/screens/forgot_password_screen.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -90,6 +91,32 @@ class _LoginScreenState extends State<LoginScreen> {
                       isPasswordVisible = !isPasswordVisible;
                     });
                   },
+                ),
+
+                const SizedBox(height: 16),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Theme.of(context).colorScheme.primary,
+                      textStyle: Theme.of(context)
+                          .textTheme
+                          .labelLarge
+                          ?.copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    child: const Text('Forgot password?'),
+                  ),
                 ),
 
                 const SizedBox(height: 16),
