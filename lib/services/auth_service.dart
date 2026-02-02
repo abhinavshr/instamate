@@ -94,4 +94,19 @@ class AuthService {
     if (userJson == null) return null;
     return jsonDecode(userJson);
   }
+
+  static Future<String?> forgotPassword({required String email}) async {
+    try {
+      final response = await AuthApi.forgotPassword({'email': email});
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return null; // success
+      }
+
+      return data['message'] ?? 'Failed to send OTP';
+    } catch (e) {
+      return e.toString();
+    }
+  }
 }
