@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
+import 'constants/app_theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,13 +14,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Instagram Clone',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3797EF),
-        ),
-        fontFamily: 'Roboto',
-        useMaterial3: true,
-      ),
+
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+
       home: const LoginScreen(),
     );
   }
