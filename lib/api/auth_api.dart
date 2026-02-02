@@ -21,5 +21,13 @@ class AuthApi {
       body: jsonEncode(data),
     );
   }
+
+  static Future<http.Response> forgotPassword(Map<String, dynamic> data) {
+    return http.post(
+      Uri.parse('$_baseUrl/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+  }
 }
 
