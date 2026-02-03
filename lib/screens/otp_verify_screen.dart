@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import 'change_password_screen.dart';
 
 class OtpVerifyScreen extends StatefulWidget {
   final String email;
@@ -14,18 +16,49 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   final List<FocusNode> _focusNodes =
   List.generate(6, (_) => FocusNode());
 
+  bool isLoading = false;
+
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    for (final c in _controllers) c.dispose();
+    for (final f in _focusNodes) f.dispose();
     super.dispose();
   }
 
   String get _otpCode => _controllers.map((c) => c.text).join();
+
+  Future<void> _verifyOtp() async {
+    if (_otpCode.length != 6) {
+      _showMessage('Enter complete OTP');
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    final error = await AuthService.verifyOtp(
+      email: widget.email,
+      otp: _otpCode,
+    );
+
+    setState(() => isLoading = false);
+
+    if (error == null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangePasswordScreen(email: widget.email),
+        ),
+      );
+    } else {
+      _showMessage(error);
+    }
+  }
+
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +80,6 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               children: [
                 const SizedBox(height: 24),
 
-                // 🔒 Icon (Instagram / Facebook style)
                 Container(
                   height: 90,
                   width: 90,
@@ -69,38 +101,31 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
                 Text(
                   'Enter security code',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 8),
 
                 Text(
                   'Please enter the 6-digit code sent to',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.hintColor,
-                  ),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.hintColor),
                 ),
-
                 const SizedBox(height: 6),
 
                 Text(
                   widget.email,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
 
                 const SizedBox(height: 32),
 
-                // 🔢 OTP Boxes
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: List.generate(6, (index) {
                     return _otpBox(
-                      context: context,
                       controller: _controllers[index],
                       focusNode: _focusNodes[index],
                       nextFocus:
@@ -108,31 +133,27 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       prevFocus:
                       index > 0 ? _focusNodes[index - 1] : null,
                       isDark: isDark,
+                      context: context,
                     );
                   }),
                 ),
 
                 const SizedBox(height: 32),
 
-                // ✅ Verify Button
                 SizedBox(
                   width: double.infinity,
                   height: 46,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    onPressed: isLoading ? null : _verifyOtp,
+                    child: isLoading
+                        ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
                       ),
-                    ),
-                    onPressed: () {
-                      final otp = _otpCode;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Entered OTP: $otp'),
-                        ),
-                      );
-                    },
-                    child: const Text(
+                    )
+                        : const Text(
                       'Verify',
                       style: TextStyle(
                         fontSize: 16,
@@ -144,22 +165,16 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
                 const SizedBox(height: 20),
 
-                // 🔁 Resend
-                Column(
-                  children: [
-                    Text(
-                      "Didn't receive the code?",
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.hintColor,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // static resend
-                      },
-                      child: const Text('Resend OTP'),
-                    ),
-                  ],
+                Text(
+                  "Didn't receive the code?",
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.hintColor),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // static resend
+                  },
+                  child: const Text('Resend OTP'),
                 ),
               ],
             ),
@@ -197,9 +212,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
           isDark ? Colors.grey.shade900 : Colors.grey.shade100,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(
-              color: Theme.of(context).dividerColor,
-            ),
+            borderSide:
+            BorderSide(color: Theme.of(context).dividerColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
