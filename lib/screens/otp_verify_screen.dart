@@ -46,7 +46,10 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => ChangePasswordScreen(email: widget.email),
+          builder: (_) => ChangePasswordScreen(
+            email: widget.email,
+            otp: _otpCode,
+          ),
         ),
       );
     } else {
