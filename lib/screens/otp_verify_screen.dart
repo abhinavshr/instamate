@@ -73,8 +73,22 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         elevation: 0,
         centerTitle: true,
         backgroundColor: theme.scaffoldBackgroundColor,
-        title: const Text('Verify OTP'),
+        iconTheme: IconThemeData(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white
+              : const Color(0xFF3797EF),
+        ),
+        title: Text(
+          'Verify OTP',
+          style: TextStyle(
+            color: theme.brightness == Brightness.dark
+                ? Colors.white
+                : const Color(0xFF3797EF),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
+
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -177,8 +191,18 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                   onPressed: () {
                     // static resend
                   },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : const Color(0xFF3797EF),
+                    textStyle: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontWeight: FontWeight.w500),
+                  ),
                   child: const Text('Resend OTP'),
                 ),
+
               ],
             ),
           ),
@@ -211,17 +235,17 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         decoration: InputDecoration(
           counterText: '',
           filled: true,
-          fillColor:
-          isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+          fillColor: isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide:
-            BorderSide(color: Theme.of(context).dividerColor),
+            borderSide: BorderSide(
+              color: isDark ? Colors.grey : const Color(0xFFDBDBDB),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary,
+              color: isDark ? Colors.white : const Color(0xFF3797EF),
               width: 1.6,
             ),
           ),

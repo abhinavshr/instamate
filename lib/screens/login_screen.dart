@@ -107,9 +107,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     },
                     style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context).brightness == Brightness.dark
+                      foregroundColor:
+                      Theme.of(context).brightness == Brightness.dark
                           ? Colors.white
-                          : Theme.of(context).colorScheme.primary,
+                          : const Color(0xFF3797EF),
                       textStyle: Theme.of(context)
                           .textTheme
                           .labelLarge
