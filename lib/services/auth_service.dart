@@ -109,4 +109,27 @@ class AuthService {
       return e.toString();
     }
   }
+
+  static Future<String?> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final response = await AuthApi.verifyOtp({
+        'email': email,
+        'otp': otp,
+      });
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return null; // success
+      }
+
+      return data['message'] ?? 'Invalid OTP';
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
 }

@@ -29,5 +29,13 @@ class AuthApi {
       body: jsonEncode(data),
     );
   }
+
+  static Future<http.Response> verifyOtp(Map<String, dynamic> data) {
+    return http.post(
+      Uri.parse('$_baseUrl/verify-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+  }
 }
 
