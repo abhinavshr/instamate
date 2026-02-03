@@ -4,19 +4,17 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     brightness: Brightness.light,
     scaffoldBackgroundColor: Colors.white,
-    primaryColor: const Color(0xFF3797EF),
+
+    colorScheme: const ColorScheme.light(
+      primary: Color(0xFF3797EF),
+    ),
+
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFFFAFAFA),
+      fillColor: Color(0xFFFAFAFA),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
-      ),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF3797EF),
-        foregroundColor: Colors.white,
+        borderSide: BorderSide(color: Color(0xFFDBDBDB)),
       ),
     ),
   );
@@ -24,20 +22,19 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     brightness: Brightness.dark,
     scaffoldBackgroundColor: Colors.black,
-    primaryColor: const Color(0xFF3797EF),
+
+    colorScheme: const ColorScheme.dark(
+      primary: Color(0xFF3797EF),
+    ),
+
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFF121212),
+      fillColor: Color(0xFF121212),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.grey),
-      ),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF3797EF),
-        foregroundColor: Colors.white,
+        borderSide: BorderSide(color: Colors.grey),
       ),
     ),
   );
+
 }

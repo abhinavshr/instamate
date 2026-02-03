@@ -74,20 +74,26 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF1F5F9),
-      contentPadding:
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
+      fillColor: isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+
+      // Normal border
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(
+          color: isDark ? Colors.grey : const Color(0xFFDBDBDB),
+        ),
       ),
+
+      // Focused border
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(
-          color: theme.colorScheme.primary,
+          color: isDark ? Colors.white : const Color(0xFF3797EF),
           width: 1.5,
         ),
       ),
+
       suffixIcon: IconButton(
         icon: Icon(
           isVisible ? Icons.visibility_off : Icons.visibility,
@@ -104,10 +110,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Password'),
-        centerTitle: true,
         elevation: 0,
+        centerTitle: true,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        iconTheme: IconThemeData(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white
+              : const Color(0xFF3797EF),
+        ),
+        title: Text(
+          'New Password',
+          style: TextStyle(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : const Color(0xFF3797EF),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -128,9 +149,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               Text(
                 widget.email,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.primary,
+                style: TextStyle(
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.white
+                      : const Color(0xFF3797EF),
                   fontWeight: FontWeight.w600,
+                  fontSize: theme.textTheme.bodyMedium?.fontSize,
                 ),
               ),
 
