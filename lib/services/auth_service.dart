@@ -132,4 +132,28 @@ class AuthService {
     }
   }
 
+  static Future<String?> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await AuthApi.resetPassword({
+        'email': email,
+        'otp': otp,
+        'new_password': newPassword,
+      });
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return null; // success
+      }
+
+      return data['message'] ?? 'Failed to reset password';
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
 }

@@ -37,5 +37,14 @@ class AuthApi {
       body: jsonEncode(data),
     );
   }
+
+  static Future<http.Response> resetPassword(Map<String, dynamic> data) {
+    return http.post(
+      Uri.parse('$_baseUrl/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+  }
+
 }
 

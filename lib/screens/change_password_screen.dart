@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:instamate/services/auth_service.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   final String email;
@@ -23,7 +24,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool isPasswordVisible = false;
   bool isConfirmPasswordVisible = false;
 
-  void _handleSavePassword() {
+  void _handleSavePassword() async {
     if (passwordController.text.isEmpty ||
         confirmPasswordController.text.isEmpty) {
       _showMessage('All fields are required');
@@ -35,9 +36,24 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    _showMessage(
-      'Password reset for ${widget.email}\nOTP: ${widget.otp}',
+    setState(() => isLoading = true);
+
+    final error = await AuthService.resetPassword(
+      email: widget.email,
+      otp: widget.otp,
+      newPassword: passwordController.text,
     );
+
+    setState(() => isLoading = false);
+
+    if (error == null) {
+      _showMessage('Password changed successfully');
+
+      // Navigate to login
+      Navigator.popUntil(context, (route) => route.isFirst);
+    } else {
+      _showMessage(error);
+    }
   }
 
   void _showMessage(String msg) {
