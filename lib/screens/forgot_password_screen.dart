@@ -15,7 +15,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _sendOTP() async {
     if (emailController.text.isEmpty) {
-      _showMessage('Email is required');
+      _showMessage('Email is required', false);
       return;
     }
 
@@ -24,7 +24,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => isLoading = false);
 
     if (error == null) {
-      _showMessage('OTP sent successfully');
+      _showMessage('OTP sent successfully', true);
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -34,13 +34,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       );
     } else {
-      _showMessage(error);
+      _showMessage(error, false);
     }
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, bool isSuccess) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess
+            ? Color(0xFF3797EF)
+            : Theme.of(context).colorScheme.error,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
     );
   }
 
@@ -55,7 +65,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           style: TextStyle(
             color: theme.brightness == Brightness.dark
                 ? Colors.white
-                : const Color(0xFF3797EF), // blue in light
+                : const Color(0xFF3797EF),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -65,10 +75,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         iconTheme: IconThemeData(
           color: theme.brightness == Brightness.dark
               ? Colors.white
-              : const Color(0xFF3797EF), // blue in light
+              : const Color(0xFF3797EF),
         ),
       ),
-
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -137,7 +146,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       borderSide: BorderSide(
                         color: Theme.of(context).brightness == Brightness.dark
                             ? Colors.white
-                            : const Color(0xFF3797EF), // blue when focused
+                            : const Color(0xFF3797EF),
                         width: 2,
                       ),
                     ),

@@ -29,7 +29,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   Future<void> _verifyOtp() async {
     if (_otpCode.length != 6) {
-      _showMessage('Enter complete OTP');
+      _showMessage('Enter complete OTP', false);
       return;
     }
 
@@ -43,6 +43,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
     setState(() => isLoading = false);
 
     if (error == null) {
+      _showMessage('OTP verified successfully', true);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -53,13 +54,23 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
         ),
       );
     } else {
-      _showMessage(error);
+      _showMessage(error, false);
     }
   }
 
-  void _showMessage(String msg) {
+  void _showMessage(String message, bool isSuccess) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess
+            ? Color(0xFF3797EF)
+            : Theme.of(context).colorScheme.error,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
     );
   }
 
@@ -145,10 +156,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                     return _otpBox(
                       controller: _controllers[index],
                       focusNode: _focusNodes[index],
-                      nextFocus:
-                      index < 5 ? _focusNodes[index + 1] : null,
-                      prevFocus:
-                      index > 0 ? _focusNodes[index - 1] : null,
+                      nextFocus: index < 5 ? _focusNodes[index + 1] : null,
+                      prevFocus: index > 0 ? _focusNodes[index - 1] : null,
                       isDark: isDark,
                       context: context,
                     );
@@ -202,7 +211,6 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                   ),
                   child: const Text('Resend OTP'),
                 ),
-
               ],
             ),
           ),
