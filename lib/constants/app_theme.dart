@@ -6,7 +6,8 @@ class AppTheme {
     scaffoldBackgroundColor: Colors.white,
 
     colorScheme: const ColorScheme.light(
-      primary: Color(0xFF3797EF),
+      primary: Color(0xFF3797EF), // Blue primary color
+      error: Color(0xFFB00020),
     ),
 
     inputDecorationTheme: InputDecorationTheme(
@@ -24,7 +25,8 @@ class AppTheme {
     scaffoldBackgroundColor: Colors.black,
 
     colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF3797EF),
+      primary: Color(0xFF3797EF), // Blue primary color for dark mode
+      error: Color(0xFFCF6679),
     ),
 
     inputDecorationTheme: InputDecorationTheme(
@@ -36,5 +38,4 @@ class AppTheme {
       ),
     ),
   );
-
 }

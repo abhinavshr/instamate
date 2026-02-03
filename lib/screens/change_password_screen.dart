@@ -27,12 +27,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   void _handleSavePassword() async {
     if (passwordController.text.isEmpty ||
         confirmPasswordController.text.isEmpty) {
-      _showMessage('All fields are required');
+      _showMessage('All fields are required', false);
       return;
     }
 
     if (passwordController.text != confirmPasswordController.text) {
-      _showMessage('Passwords do not match');
+      _showMessage('Passwords do not match', false);
       return;
     }
 
@@ -47,18 +47,28 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     setState(() => isLoading = false);
 
     if (error == null) {
-      _showMessage('Password changed successfully');
+      _showMessage('Password changed successfully', true);
 
       // Navigate to login
       Navigator.popUntil(context, (route) => route.isFirst);
     } else {
-      _showMessage(error);
+      _showMessage(error, false);
     }
   }
 
-  void _showMessage(String msg) {
+  void _showMessage(String message, bool isSuccess) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess
+            ? Color(0xFF3797EF)
+            : Theme.of(context).colorScheme.error,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
     );
   }
 
@@ -160,7 +170,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
               const SizedBox(height: 32),
 
-              // 🔑 New Password
+              // New Password
               TextField(
                 controller: passwordController,
                 obscureText: !isPasswordVisible,
@@ -178,7 +188,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
               const SizedBox(height: 16),
 
-              // 🔑 Confirm Password
+              // Confirm Password
               TextField(
                 controller: confirmPasswordController,
                 obscureText: !isConfirmPasswordVisible,
