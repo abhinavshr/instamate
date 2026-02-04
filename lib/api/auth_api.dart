@@ -22,6 +22,14 @@ class AuthApi {
     );
   }
 
+  static Future<http.Response> resetPassword(Map<String, dynamic> data) {
+    return http.post(
+      Uri.parse('$_baseUrl/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+  }
+
   static Future<http.Response> forgotPassword(Map<String, dynamic> data) {
     return http.post(
       Uri.parse('$_baseUrl/forgot-password'),
@@ -38,13 +46,12 @@ class AuthApi {
     );
   }
 
-  static Future<http.Response> resetPassword(Map<String, dynamic> data) {
+  static Future<http.Response> resendOtp(Map<String, dynamic> data) {
     return http.post(
-      Uri.parse('$_baseUrl/reset-password'),
+      Uri.parse('$_baseUrl/resend-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(data),
     );
   }
-
 }
 
