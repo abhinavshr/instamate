@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
+import 'package:instamate/screens/auth_check_screen.dart';
 import 'constants/app_theme.dart';
 
 void main() {
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
 
-      home: const LoginScreen(),
+      home: const AuthCheckScreen(),
     );
   }
 }

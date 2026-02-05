@@ -36,40 +36,6 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
 
-      // Bottom Navigation
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 0,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black54,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_box_outlined),
-            label: 'Post',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.movie_outlined),
-            label: 'Reels',
-          ),
-          BottomNavigationBarItem(
-            icon: CircleAvatar(
-              radius: 12,
-              backgroundColor: Colors.grey,
-            ),
-            label: 'Profile',
-          ),
-        ],
-      ),
     );
   }
 
