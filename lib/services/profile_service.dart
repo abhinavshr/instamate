@@ -22,4 +22,24 @@ class ProfileService {
       rethrow;
     }
   }
+
+  static Future<Map<String, dynamic>?> getProfileStats() async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await ProfileApi.fetchProfileStats(token);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data['user'];
+      }
+
+      throw Exception(data['message'] ?? 'Failed to fetch profile');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

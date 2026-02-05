@@ -9,19 +9,29 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late Future<Map<String, dynamic>?> _profileFuture;
+  late Future<Map<String, dynamic>> _profileWithStatsFuture;
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = ProfileService.getProfile();
+    _profileWithStatsFuture = _fetchProfileAndStats();
+  }
+
+  Future<Map<String, dynamic>> _fetchProfileAndStats() async {
+    final profile = await ProfileService.getProfile();
+    final stats = await ProfileService.getProfileStats();
+
+    return {
+      'user': profile,
+      'stats': stats,
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<Map<String, dynamic>?>(
-        future: _profileFuture,
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _profileWithStatsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -33,20 +43,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }
 
-          if (!snapshot.hasData || snapshot.data == null) {
+          if (!snapshot.hasData) {
             return const Center(child: Text('No profile data found'));
           }
 
-          final user = snapshot.data!;
+          final user = snapshot.data!['user'];
+          final stats = snapshot.data!['stats'];
 
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // APP BAR (custom)
                 AppBar(
                   title: Text(
-                    user['username'] ?? '',
+                    user?['username'] ?? '',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   centerTitle: false,
@@ -68,14 +78,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Profile Image
                       CircleAvatar(
                         radius: 40,
                         backgroundColor: Colors.grey.shade300,
-                        backgroundImage: user['profile_pic'] != null
-                            ? NetworkImage(user['profile_pic'])
+                        backgroundImage: user?['profile_pic'] != null
+                            ? NetworkImage(user!['profile_pic'])
                             : null,
-                        child: user['profile_pic'] == null
+                        child: user?['profile_pic'] == null
                             ? const Icon(
                           Icons.person,
                           size: 40,
@@ -86,13 +95,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       const SizedBox(width: 16),
 
-                      // Name & Stats
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user['full_name'] ?? '',
+                              user?['full_name'] ?? '',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -103,10 +111,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: const [
-                                _ProfileStat(count: '0', label: 'Posts'),
-                                _ProfileStat(count: '0', label: 'Followers'),
-                                _ProfileStat(count: '0', label: 'Following'),
+                              children: [
+                                _ProfileStat(
+                                    count: stats?['total_posts']?.toString() ?? '0',
+                                    label: 'Posts'),
+                                _ProfileStat(
+                                    count: stats?['total_followers']?.toString() ?? '0',
+                                    label: 'Followers'),
+                                _ProfileStat(
+                                    count: stats?['total_following']?.toString() ?? '0',
+                                    label: 'Following'),
                               ],
                             ),
                           ],
@@ -122,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (user['bio'] != null)
+                      if (user?['bio'] != null)
                         Text(user['bio'])
                       else
                         const Text(
@@ -174,8 +188,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   itemBuilder: (context, index) {
                     return Container(
                       color: Colors.grey.shade300,
-                      child:
-                      const Icon(Icons.image, color: Colors.white),
+                      child: const Icon(Icons.image, color: Colors.white),
                     );
                   },
                 ),

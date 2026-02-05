@@ -12,4 +12,14 @@ class ProfileApi {
       },
     );
   }
+
+  static Future<http.Response> fetchProfileStats(String token) {
+    return http.get(
+      Uri.parse('$_baseUrl/profile/stats'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
