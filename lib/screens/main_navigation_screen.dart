@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:instamate/screens/profile_screen.dart';
 import 'package:instamate/widget/custom_bottom_navbar.dart';
 import 'home_screen.dart';
 
@@ -23,7 +24,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       _PageText(title: 'Reels'),
       _PageText(title: 'Message'),
       _PageText(title: 'Search'),
-      _PageText(title: 'Profile'),
+      ProfileScreen()
     ];
   }
 
