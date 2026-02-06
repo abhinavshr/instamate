@@ -27,7 +27,7 @@ class EditFieldScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context, controller.text.trim());
             },
             child: const Text(
               'Done',
@@ -53,7 +53,6 @@ class EditFieldScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
@@ -74,10 +73,7 @@ class EditFieldScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Helper text (Instagram style)
             Text(
               _helperText(title),
               style: const TextStyle(

@@ -45,8 +45,6 @@ class EditProfileScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 16),
-
-                // Profile Picture
                 Column(
                   children: [
                     CircleAvatar(
@@ -55,9 +53,7 @@ class EditProfileScreen extends StatelessWidget {
                       backgroundImage: profilePic != null
                           ? NetworkImage(profilePic)
                           : const AssetImage('assets/images/user_avatar.png') as ImageProvider,
-                      onBackgroundImageError: (_, __) {
-                        // fallback to asset if network image fails
-                      },
+                      onBackgroundImageError: (_, __) {},
                       child: profilePic == null
                           ? Image.asset(
                         'assets/images/user_avatar.png',
@@ -68,7 +64,11 @@ class EditProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Profile photo editing not implemented yet')),
+                        );
+                      },
                       child: Text(
                         'Change profile photo',
                         style: TextStyle(
@@ -79,36 +79,13 @@ class EditProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 24),
                 Divider(height: 1, color: theme.dividerColor),
-
-                // Name
-                _editRow(
-                  context,
-                  label: 'Name',
-                  value: fullName,
-                ),
-
-                // Username
-                _editRow(
-                  context,
-                  label: 'Username',
-                  value: username,
-                ),
-
-                // Bio
-                _editRow(
-                  context,
-                  label: 'Bio',
-                  value: bio,
-                  maxLines: 3,
-                ),
-
+                _editRow(context, label: 'Name', value: fullName),
+                _editRow(context, label: 'Username', value: username),
+                _editRow(context, label: 'Bio', value: bio, maxLines: 3),
                 const SizedBox(height: 8),
                 Divider(height: 1, color: theme.dividerColor),
-
-                // Switch to professional account
                 ListTile(
                   title: Text(
                     'Switch to professional account',
@@ -117,10 +94,7 @@ class EditProfileScreen extends StatelessWidget {
                   trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
                   onTap: () {},
                 ),
-
                 Divider(height: 1, color: theme.dividerColor),
-
-                // Personal information settings
                 ListTile(
                   title: Text(
                     'Personal information settings',
@@ -129,7 +103,6 @@ class EditProfileScreen extends StatelessWidget {
                   trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
                   onTap: () {},
                 ),
-
                 Divider(height: 1, color: theme.dividerColor),
               ],
             ),
@@ -139,26 +112,52 @@ class EditProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _editRow(
-      BuildContext context, {
-        required String label,
-        required String value,
-        int maxLines = 1,
-      }) {
+  Widget _editRow(BuildContext context, {required String label, required String value, int maxLines = 1}) {
     final theme = Theme.of(context);
 
     return InkWell(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        final newValue = await Navigator.push<String>(
           context,
           MaterialPageRoute(
-            builder: (_) => EditFieldScreen(
-              title: label,
-              initialValue: value,
-              maxLines: maxLines,
-            ),
+            builder: (_) => EditFieldScreen(title: label, initialValue: value, maxLines: maxLines),
           ),
         );
+
+        if (newValue != null && newValue != value) {
+          try {
+            Map<String, String> updateData = {};
+            switch (label) {
+              case 'Name':
+                updateData['fullName'] = newValue;
+                break;
+              case 'Username':
+                updateData['username'] = newValue;
+                break;
+              case 'Bio':
+                updateData['bio'] = newValue;
+                break;
+            }
+
+            if (updateData.isNotEmpty) {
+              await ProfileService.updateProfile(
+                username: updateData['username'],
+                fullName: updateData['fullName'],
+                bio: updateData['bio'],
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Profile updated successfully')),
+              );
+
+              (context as Element).reassemble();
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to update profile: $e')),
+            );
+          }
+        }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -166,17 +165,16 @@ class EditProfileScreen extends StatelessWidget {
           children: [
             SizedBox(
               width: 90,
-              child: Text(
-                label,
-                style: theme.textTheme.bodyMedium,
-              ),
+              child: Text(label, style: theme.textTheme.bodyMedium),
             ),
             Expanded(
               child: Text(
                 value.isEmpty ? '—' : value,
                 maxLines: maxLines,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7)),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                ),
               ),
             ),
           ],
