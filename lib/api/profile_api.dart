@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 class ProfileApi {
@@ -20,6 +22,30 @@ class ProfileApi {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
+    );
+  }
+
+  static Future<http.Response> updateProfile({
+    required String token,
+    String? username,
+    String? fullName,
+    String? profilePic,
+    String? bio,
+  }) {
+    // Build the request body only with non-null fields
+    final body = <String, dynamic>{};
+    if (username != null) body['username'] = username;
+    if (fullName != null) body['full_name'] = fullName;
+    if (profilePic != null) body['profile_pic'] = profilePic;
+    if (bio != null) body['bio'] = bio;
+
+    return http.put(
+      Uri.parse('$_baseUrl/update-profile'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
     );
   }
 }
