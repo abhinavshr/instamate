@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:instamate/screens/edit_profile_screen.dart';
 import '../services/profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -156,7 +157,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const EditProfileScreen(),
+                              ),
+                            );
+                          },
                           child: const Text('Edit Profile'),
                         ),
                       ),
