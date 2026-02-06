@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/profile_service.dart';
 import 'edit_field_screen.dart';
 
 class EditProfileScreen extends StatelessWidget {
@@ -6,94 +7,134 @@ class EditProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Edit Profile',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        iconTheme: theme.iconTheme,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: ProfileService.getProfile(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            // Profile Picture
-            Column(
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: theme.textTheme.bodyMedium,
+              ),
+            );
+          }
+
+          final profile = snapshot.data!;
+          final fullName = profile['full_name'] ?? '';
+          final username = profile['username'] ?? '';
+          final bio = profile['bio'] ?? '';
+          final profilePic = profile['profile_pic'];
+
+          return SingleChildScrollView(
+            child: Column(
               children: [
-                const CircleAvatar(
-                  radius: 45,
-                  backgroundImage: NetworkImage(
-                    'https://via.placeholder.com/150',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'Change profile photo',
-                    style: TextStyle(
-                      color: Color(0xFF3797EF),
-                      fontWeight: FontWeight.w600,
+                const SizedBox(height: 16),
+
+                // Profile Picture
+                Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 45,
+                      backgroundColor: Colors.grey.shade300,
+                      backgroundImage: profilePic != null
+                          ? NetworkImage(profilePic)
+                          : const AssetImage('assets/images/user_avatar.png') as ImageProvider,
+                      onBackgroundImageError: (_, __) {
+                        // fallback to asset if network image fails
+                      },
+                      child: profilePic == null
+                          ? Image.asset(
+                        'assets/images/user_avatar.png',
+                        width: 40,
+                        height: 40,
+                      )
+                          : null,
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {},
+                      child: Text(
+                        'Change profile photo',
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+
+                const SizedBox(height: 24),
+                Divider(height: 1, color: theme.dividerColor),
+
+                // Name
+                _editRow(
+                  context,
+                  label: 'Name',
+                  value: fullName,
+                ),
+
+                // Username
+                _editRow(
+                  context,
+                  label: 'Username',
+                  value: username,
+                ),
+
+                // Bio
+                _editRow(
+                  context,
+                  label: 'Bio',
+                  value: bio,
+                  maxLines: 3,
+                ),
+
+                const SizedBox(height: 8),
+                Divider(height: 1, color: theme.dividerColor),
+
+                // Switch to professional account
+                ListTile(
+                  title: Text(
+                    'Switch to professional account',
+                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
+                  onTap: () {},
+                ),
+
+                Divider(height: 1, color: theme.dividerColor),
+
+                // Personal information settings
+                ListTile(
+                  title: Text(
+                    'Personal information settings',
+                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                  trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
+                  onTap: () {},
+                ),
+
+                Divider(height: 1, color: theme.dividerColor),
               ],
             ),
-
-            const SizedBox(height: 24),
-            const Divider(height: 1),
-
-            // Name
-            _editRow(
-              context,
-              label: 'Name',
-              value: 'Abhinav Shrestha',
-            ),
-
-            // Username
-            _editRow(
-              context,
-              label: 'Username',
-              value: 'abhinav_shrestha',
-            ),
-
-            // Bio
-            _editRow(
-              context,
-              label: 'Bio',
-              value: 'Flutter Developer 🚀\nBuilding cool apps',
-              maxLines: 3,
-            ),
-
-            const SizedBox(height: 8),
-            const Divider(height: 1),
-
-            // Switch to Professional Account
-            ListTile(
-              title: const Text(
-                'Switch to professional account',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
-            ),
-
-            const Divider(height: 1),
-
-            // Personal Information Settings
-            ListTile(
-              title: const Text(
-                'Personal information settings',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
-            ),
-
-            const Divider(height: 1),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -104,6 +145,8 @@ class EditProfileScreen extends StatelessWidget {
         required String value,
         int maxLines = 1,
       }) {
+    final theme = Theme.of(context);
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -125,15 +168,15 @@ class EditProfileScreen extends StatelessWidget {
               width: 90,
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 14),
+                style: theme.textTheme.bodyMedium,
               ),
             ),
             Expanded(
               child: Text(
-                value,
+                value.isEmpty ? '—' : value,
                 maxLines: maxLines,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.grey),
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.textTheme.bodySmall?.color?.withOpacity(0.7)),
               ),
             ),
           ],
