@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -47,5 +48,27 @@ class ProfileApi {
       },
       body: jsonEncode(body),
     );
+  }
+
+  static Future<http.StreamedResponse> updateProfileMultipart({
+    required String token,
+    String? username,
+    String? fullName,
+    File? profilePicFile,
+    String? bio,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/update-profile');
+    var request = http.MultipartRequest('PUT', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    if (username != null) request.fields['username'] = username;
+    if (fullName != null) request.fields['full_name'] = fullName;
+    if (bio != null) request.fields['bio'] = bio;
+
+    if (profilePicFile != null) {
+      request.files.add(await http.MultipartFile.fromPath('profile_pic', profilePicFile.path));
+    }
+
+    return await request.send();
   }
 }
