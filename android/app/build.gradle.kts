@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.instamate"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
