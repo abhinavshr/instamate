@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/profile_service.dart';
 import 'edit_field_screen.dart';
 
@@ -64,11 +68,7 @@ class EditProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Profile photo editing not implemented yet')),
-                        );
-                      },
+                      onPressed: () => _showImageSourceSheet(context),
                       child: Text(
                         'Change profile photo',
                         style: TextStyle(
@@ -112,6 +112,7 @@ class EditProfileScreen extends StatelessWidget {
     );
   }
 
+  // ------------------------- Edit Row -------------------------
   Widget _editRow(BuildContext context, {required String label, required String value, int maxLines = 1}) {
     final theme = Theme.of(context);
 
@@ -181,5 +182,67 @@ class EditProfileScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ------------------------- Bottom Sheet -------------------------
+  void _showImageSourceSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(context, ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take a Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(context, ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ------------------------- Pick Image -------------------------
+  Future<void> _pickImage(BuildContext context, ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
+
+    if (pickedFile != null) {
+      final file = File(pickedFile.path);
+
+      try {
+        final bytes = await file.readAsBytes();
+        final base64Image = base64Encode(bytes);
+
+        await ProfileService.updateProfile(profilePic: base64Image);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated successfully')),
+        );
+
+        // Refresh screen
+        (context as Element).reassemble();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update profile picture: $e')),
+        );
+      }
+    }
   }
 }
