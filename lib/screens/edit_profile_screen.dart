@@ -6,8 +6,39 @@ import 'package:image_picker/image_picker.dart';
 import '../services/profile_service.dart';
 import 'edit_field_screen.dart';
 
-class EditProfileScreen extends StatelessWidget {
+class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  Map<String, dynamic>? _profile;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final data = await ProfileService.getProfile();
+      setState(() {
+        _profile = data;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,97 +54,69 @@ class EditProfileScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: theme.iconTheme,
       ),
-      body: FutureBuilder<Map<String, dynamic>?>(
-        future: ProfileService.getProfile(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Error: ${snapshot.error}',
-                style: theme.textTheme.bodyMedium,
-              ),
-            );
-          }
-
-          final profile = snapshot.data!;
-          final fullName = profile['full_name'] ?? '';
-          final username = profile['username'] ?? '';
-          final bio = profile['bio'] ?? '';
-          final profilePic = profile['profile_pic'];
-
-          return SingleChildScrollView(
-            child: Column(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _profile == null
+          ? Center(child: Text('Failed to load profile', style: theme.textTheme.bodyMedium))
+          : SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            Column(
               children: [
-                const SizedBox(height: 16),
-                Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 45,
-                      backgroundColor: Colors.grey.shade300,
-                      backgroundImage: profilePic != null
-                          ? NetworkImage(profilePic)
-                          : const AssetImage('assets/images/user_avatar.png') as ImageProvider,
-                      onBackgroundImageError: (_, __) {},
-                      child: profilePic == null
-                          ? Image.asset(
-                        'assets/images/user_avatar.png',
-                        width: 40,
-                        height: 40,
-                      )
-                          : null,
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => _showImageSourceSheet(context),
-                      child: Text(
-                        'Change profile photo',
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                CircleAvatar(
+                  radius: 45,
+                  backgroundColor: Colors.grey.shade300,
+                  backgroundImage: _profile!['profile_pic'] != null
+                      ? NetworkImage(_profile!['profile_pic'])
+                      : const AssetImage('assets/images/user_avatar.png') as ImageProvider,
                 ),
-                const SizedBox(height: 24),
-                Divider(height: 1, color: theme.dividerColor),
-                _editRow(context, label: 'Name', value: fullName),
-                _editRow(context, label: 'Username', value: username),
-                _editRow(context, label: 'Bio', value: bio, maxLines: 3),
                 const SizedBox(height: 8),
-                Divider(height: 1, color: theme.dividerColor),
-                ListTile(
-                  title: Text(
-                    'Switch to professional account',
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                TextButton(
+                  onPressed: () => _showImageSourceSheet(),
+                  child: Text(
+                    'Change profile photo',
+                    style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
-                  onTap: () {},
                 ),
-                Divider(height: 1, color: theme.dividerColor),
-                ListTile(
-                  title: Text(
-                    'Personal information settings',
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-                  ),
-                  trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
-                  onTap: () {},
-                ),
-                Divider(height: 1, color: theme.dividerColor),
               ],
             ),
-          );
-        },
+            const SizedBox(height: 24),
+            Divider(height: 1, color: theme.dividerColor),
+            _editRow(label: 'Name', value: _profile!['full_name'] ?? ''),
+            _editRow(label: 'Username', value: _profile!['username'] ?? ''),
+            _editRow(label: 'Bio', value: _profile!['bio'] ?? '', maxLines: 3),
+            const SizedBox(height: 8),
+            Divider(height: 1, color: theme.dividerColor),
+            ListTile(
+              title: Text(
+                'Switch to professional account',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+              ),
+              trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
+              onTap: () {},
+            ),
+            Divider(height: 1, color: theme.dividerColor),
+            ListTile(
+              title: Text(
+                'Personal information settings',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+              ),
+              trailing: Icon(Icons.chevron_right, color: theme.iconTheme.color),
+              onTap: () {},
+            ),
+            Divider(height: 1, color: theme.dividerColor),
+          ],
+        ),
       ),
     );
   }
 
   // ------------------------- Edit Row -------------------------
-  Widget _editRow(BuildContext context, {required String label, required String value, int maxLines = 1}) {
+  Widget _editRow({required String label, required String value, int maxLines = 1}) {
     final theme = Theme.of(context);
 
     return InkWell(
@@ -147,11 +150,16 @@ class EditProfileScreen extends StatelessWidget {
                 bio: updateData['bio'],
               );
 
+              setState(() {
+                // Update the local profile map dynamically
+                if (updateData['fullName'] != null) _profile!['full_name'] = updateData['fullName'];
+                if (updateData['username'] != null) _profile!['username'] = updateData['username'];
+                if (updateData['bio'] != null) _profile!['bio'] = updateData['bio'];
+              });
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Profile updated successfully')),
               );
-
-              (context as Element).reassemble();
             }
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -185,7 +193,7 @@ class EditProfileScreen extends StatelessWidget {
   }
 
   // ------------------------- Bottom Sheet -------------------------
-  void _showImageSourceSheet(BuildContext context) {
+  void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -200,7 +208,7 @@ class EditProfileScreen extends StatelessWidget {
                 title: const Text('Choose from Gallery'),
                 onTap: () {
                   Navigator.pop(context);
-                  _pickImage(context, ImageSource.gallery);
+                  _pickImage(ImageSource.gallery);
                 },
               ),
               ListTile(
@@ -208,7 +216,7 @@ class EditProfileScreen extends StatelessWidget {
                 title: const Text('Take a Photo'),
                 onTap: () {
                   Navigator.pop(context);
-                  _pickImage(context, ImageSource.camera);
+                  _pickImage(ImageSource.camera);
                 },
               ),
             ],
@@ -219,30 +227,29 @@ class EditProfileScreen extends StatelessWidget {
   }
 
   // ------------------------- Pick Image -------------------------
-  Future<void> _pickImage(BuildContext context, ImageSource source) async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
-    if (pickedFile != null) {
-      final file = File(pickedFile.path);
+      if (pickedFile != null) {
+        final file = File(pickedFile.path);
 
-      try {
-        final bytes = await file.readAsBytes();
-        final base64Image = base64Encode(bytes);
+        // Call the updated method that handles multipart
+        await ProfileService.updateProfile(profilePicFile: file);
 
-        await ProfileService.updateProfile(profilePic: base64Image);
+        // Refresh the profile data from server
+        await _loadProfile();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile picture updated successfully')),
         );
-
-        // Refresh screen
-        (context as Element).reassemble();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile picture: $e')),
-        );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile picture: $e')),
+      );
     }
   }
+
 }

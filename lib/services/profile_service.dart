@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import '../api/profile_api.dart';
 import 'auth_service.dart';
 
@@ -43,35 +44,64 @@ class ProfileService {
     }
   }
 
+  // static Future<Map<String, dynamic>?> updateProfile({
+  //   String? username,
+  //   String? fullName,
+  //   String? profilePic,
+  //   String? bio,
+  // }) async {
+  //   try {
+  //     final token = await AuthService.getToken();
+  //     if (token == null) {
+  //       throw Exception('User not authenticated');
+  //     }
+  //
+  //     final response = await ProfileApi.updateProfile(
+  //       token: token,
+  //       username: username,
+  //       fullName: fullName,
+  //       profilePic: profilePic,
+  //       bio: bio,
+  //     );
+  //
+  //     final data = jsonDecode(response.body);
+  //
+  //     if (response.statusCode == 200) {
+  //       return data['user'];
+  //     }
+  //
+  //     throw Exception(data['message'] ?? 'Failed to update profile');
+  //   } catch (e) {
+  //     rethrow;
+  //   }
+  // }
+
   static Future<Map<String, dynamic>?> updateProfile({
     String? username,
     String? fullName,
-    String? profilePic,
+    File? profilePicFile,
     String? bio,
   }) async {
-    try {
-      final token = await AuthService.getToken();
-      if (token == null) {
-        throw Exception('User not authenticated');
-      }
+    final token = await AuthService.getToken();
+    if (token == null) throw Exception('User not authenticated');
 
-      final response = await ProfileApi.updateProfile(
-        token: token,
-        username: username,
-        fullName: fullName,
-        profilePic: profilePic,
-        bio: bio,
-      );
+    final streamedResponse = await ProfileApi.updateProfileMultipart(
+      token: token,
+      username: username,
+      fullName: fullName,
+      profilePicFile: profilePicFile,
+      bio: bio,
+    );
 
-      final data = jsonDecode(response.body);
+    final responseBody = await streamedResponse.stream.bytesToString();
 
-      if (response.statusCode == 200) {
-        return data['user'];
-      }
-
+    if (streamedResponse.statusCode == 200) {
+      final data = jsonDecode(responseBody);
+      return data['user'];
+    } else {
+      final data = jsonDecode(responseBody);
       throw Exception(data['message'] ?? 'Failed to update profile');
-    } catch (e) {
-      rethrow;
     }
   }
 }
+
