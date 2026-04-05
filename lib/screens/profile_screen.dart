@@ -11,11 +11,13 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Map<String, dynamic>> _profileWithStatsFuture;
+  late Future<List<dynamic>> _myPostsFuture;
 
   @override
   void initState() {
     super.initState();
     _profileWithStatsFuture = _fetchProfileAndStats();
+    _myPostsFuture = ProfileService.getMyPosts();
   }
 
   Future<Map<String, dynamic>> _fetchProfileAndStats() async {
@@ -73,7 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
 
-                // Profile info
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -131,7 +132,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
-                // Bio
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
@@ -150,7 +150,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 12),
 
-                // Buttons
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
@@ -167,6 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                             setState(() {
                               _profileWithStatsFuture = _fetchProfileAndStats();
+                              _myPostsFuture = ProfileService.getMyPosts();
                             });
                           },
                           child: const Text('Edit Profile'),
@@ -186,21 +186,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 16),
                 const Divider(),
 
-                // Post Grid (placeholder)
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 9,
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 2,
-                    mainAxisSpacing: 2,
-                  ),
-                  itemBuilder: (context, index) {
-                    return Container(
-                      color: Colors.grey.shade300,
-                      child: const Icon(Icons.image, color: Colors.white),
+                FutureBuilder<List<dynamic>>(
+                  future: _myPostsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+
+                    final posts = snapshot.data ?? [];
+
+                    if (posts.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(
+                          child: Text(
+                            'No posts yet',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: posts.length,
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 2,
+                        mainAxisSpacing: 2,
+                      ),
+                      itemBuilder: (context, index) {
+                        final post = posts[index];
+                        final media = post['media'] as List<dynamic>;
+                        final firstMedia =
+                        media.isNotEmpty ? media[0]['media_url'] : null;
+
+                        return firstMedia != null
+                            ? Image.network(
+                          firstMedia,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.grey.shade300,
+                            child: const Icon(Icons.broken_image,
+                                color: Colors.white),
+                          ),
+                        )
+                            : Container(
+                          color: Colors.grey.shade300,
+                          child: const Icon(Icons.image,
+                              color: Colors.white),
+                        );
+                      },
                     );
                   },
                 ),
@@ -213,7 +255,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// Profile Stat Widget
 class _ProfileStat extends StatelessWidget {
   final String count;
   final String label;
