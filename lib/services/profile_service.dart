@@ -103,5 +103,18 @@ class ProfileService {
       throw Exception(data['message'] ?? 'Failed to update profile');
     }
   }
-}
 
+  static Future<List<dynamic>> getMyPosts() async {
+    final token = await AuthService.getToken();
+    if (token == null) throw Exception('User not authenticated');
+
+    final response = await ProfileApi.fetchMyPosts(token);
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return data['posts'];
+    }
+
+    throw Exception(data['message'] ?? 'Failed to fetch posts');
+  }
+}

@@ -71,4 +71,15 @@ class ProfileApi {
 
     return await request.send();
   }
+
+  static Future<http.Response> fetchMyPosts(String token) {
+    return http.get(
+      Uri.parse('http://10.0.2.2:5000/api/posts/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
+
