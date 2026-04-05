@@ -157,13 +157,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.push(
+                          onPressed: () async {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const EditProfileScreen(),
                               ),
                             );
+
+                            setState(() {
+                              _profileWithStatsFuture = _fetchProfileAndStats();
+                            });
                           },
                           child: const Text('Edit Profile'),
                         ),
