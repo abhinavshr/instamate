@@ -81,5 +81,15 @@ class ProfileApi {
       },
     );
   }
+
+  static Future<http.Response> fetchMyPostById(String token, int postId) {
+    return http.get(
+      Uri.parse('http://10.0.2.2:5000/api/posts/$postId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
 

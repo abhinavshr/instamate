@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:instamate/screens/edit_profile_screen.dart';
+import 'package:instamate/widget/profile/post_detail_screen.dart';
 import '../services/profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -221,26 +222,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisSpacing: 2,
                         mainAxisSpacing: 2,
                       ),
+
                       itemBuilder: (context, index) {
                         final post = posts[index];
                         final media = post['media'] as List<dynamic>;
-                        final firstMedia =
-                        media.isNotEmpty ? media[0]['media_url'] : null;
+                        final firstMedia = media.isNotEmpty ? media[0]['media_url'] : null;
 
-                        return firstMedia != null
-                            ? Image.network(
-                          firstMedia,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey.shade300,
-                            child: const Icon(Icons.broken_image,
-                                color: Colors.white),
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PostDetailScreen(postId: post['post_id']),
+                              ),
+                            );
+                          },
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              firstMedia != null
+                                  ? Image.network(
+                                firstMedia,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(Icons.broken_image,
+                                      color: Colors.white),
+                                ),
+                              )
+                                  : Container(
+                                color: Colors.grey.shade300,
+                                child: const Icon(Icons.image, color: Colors.white),
+                              ),
+                              // Add overlay if post has multiple images
+                              if (media.length > 1)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Icon(
+                                    Icons.collections,
+                                    color: Colors.white,
+                                    size: 20,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.5),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
-                        )
-                            : Container(
-                          color: Colors.grey.shade300,
-                          child: const Icon(Icons.image,
-                              color: Colors.white),
                         );
                       },
                     );

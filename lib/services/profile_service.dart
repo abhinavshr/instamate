@@ -117,4 +117,24 @@ class ProfileService {
 
     throw Exception(data['message'] ?? 'Failed to fetch posts');
   }
+
+  static Future<Map<String, dynamic>?> getMyPostById(int postId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await ProfileApi.fetchMyPostById(token, postId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data['post'];
+      }
+
+      throw Exception(data['message'] ?? 'Failed to fetch post');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
