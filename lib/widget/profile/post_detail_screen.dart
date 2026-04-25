@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../../services/profile_service.dart';
+import '../../services/like_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final int postId;
@@ -17,6 +18,11 @@ class PostDetailScreen extends StatefulWidget {
 class _PostDetailScreenState extends State<PostDetailScreen> {
   late Future<Map<String, dynamic>?> _postFuture;
   int _currentImageIndex = 0;
+
+  bool _isLiked = false;
+  int _likeCount = 0;
+  bool _isLikeLoading = false;
+  bool _likeInitialized = false;
 
   @override
   void initState() {
@@ -66,6 +72,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           final post = snapshot.data!;
           final media = post['media'] as List<dynamic>;
 
+          // Initialize like state only once from post data
+          if (!_likeInitialized) {
+            _isLiked = post['is_liked'] == true;
+            _likeCount = post['like_count'] ?? 0;
+            _likeInitialized = true;
+          }
+
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +95,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             ? NetworkImage(post['profile_pic'])
                             : null,
                         child: post['profile_pic'] == null
-                            ? const Icon(Icons.person, size: 16, color: Colors.white)
+                            ? const Icon(Icons.person,
+                            size: 16, color: Colors.white)
                             : null,
                       ),
                       const SizedBox(width: 10),
@@ -95,7 +109,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.more_vert, color: Colors.white),
+                        icon:
+                        const Icon(Icons.more_vert, color: Colors.white),
                         onPressed: () {},
                       ),
                     ],
@@ -150,7 +165,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   (index) => Container(
                                 width: 6,
                                 height: 6,
-                                margin: const EdgeInsets.symmetric(horizontal: 3),
+                                margin:
+                                const EdgeInsets.symmetric(horizontal: 3),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: _currentImageIndex == index
@@ -166,28 +182,64 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
                 // Action Buttons
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
+                      // Like button
                       IconButton(
-                        icon: Icon(
-                          post['is_liked'] == true
+                        icon: _isLikeLoading
+                            ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                            : Icon(
+                          _isLiked
                               ? Icons.favorite
                               : Icons.favorite_border,
-                          color: post['is_liked'] == true ? Colors.red : Colors.white,
+                          color: _isLiked ? Colors.red : Colors.white,
                         ),
-                        onPressed: () {
-                          // TODO: Implement like functionality
+                        onPressed: _isLikeLoading
+                            ? null
+                            : () async {
+                          setState(() => _isLikeLoading = true);
+                          try {
+                            await LikeService.toggleLike(widget.postId);
+                            setState(() {
+                              _isLiked = !_isLiked;
+                              _likeCount = _isLiked
+                                  ? _likeCount + 1
+                                  : _likeCount - 1;
+                            });
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content:
+                                  Text('Failed to like post: $e'),
+                                ),
+                              );
+                            }
+                          } finally {
+                            setState(() => _isLikeLoading = false);
+                          }
                         },
                       ),
+
                       IconButton(
-                        icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                        icon: const Icon(Icons.chat_bubble_outline,
+                            color: Colors.white),
                         onPressed: () {
                           // TODO: Implement comment functionality
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.send_outlined, color: Colors.white),
+                        icon: const Icon(Icons.send_outlined,
+                            color: Colors.white),
                         onPressed: () {
                           // TODO: Implement share functionality
                         },
@@ -212,7 +264,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
-                    '${post['like_count']} likes',
+                    '$_likeCount likes',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -223,7 +275,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 const SizedBox(height: 4),
 
                 // Caption
-                if (post['caption'] != null && post['caption'].toString().isNotEmpty)
+                if (post['caption'] != null &&
+                    post['caption'].toString().isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: RichText(
@@ -250,7 +303,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 // View all comments
                 if (post['comment_count'] > 0)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
                     child: GestureDetector(
                       onTap: () {
                         // TODO: Navigate to comments screen
@@ -266,7 +320,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
                 // Timestamp
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Text(
                     _formatTimestamp(post['created_at']),
                     style: TextStyle(
