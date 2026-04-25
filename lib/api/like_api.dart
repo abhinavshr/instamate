@@ -12,4 +12,14 @@ class LikeApi {
       },
     );
   }
+
+  static Future<http.Response> isPostLiked(String token, int postId) {
+    return http.get(
+      Uri.parse('$_baseUrl/$postId/is-liked'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
