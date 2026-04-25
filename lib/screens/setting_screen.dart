@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:instamate/screens/auth_check_screen.dart';
+import 'package:instamate/services/auth_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -120,13 +122,45 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // Log out
           InkWell(
-            onTap: () {},
+            onTap: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Log out'),
+                  content: const Text('Are you sure you want to log out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text(
+                        'Log out',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await AuthService.logout();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AuthCheckScreen()),
+                        (route) => false,
+                  );
+                }
+              }
+            },
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Text(
                 'Log out',
                 style: TextStyle(
-                  color: Colors.blue,
+                  color: Colors.red, // Instagram uses red for logout
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
                 ),
