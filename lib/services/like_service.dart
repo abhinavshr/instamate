@@ -12,7 +12,7 @@ class LikeService {
       final response = await LikeApi.toggleLike(token, postId);
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return data;
       }
 
