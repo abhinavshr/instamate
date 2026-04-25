@@ -23,6 +23,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   int _likeCount = 0;
   bool _isLikeLoading = false;
   bool _likeInitialized = false;
+  bool _showHeart = false;
 
   @override
   void initState() {
@@ -41,6 +42,34 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _handleToggleLike() async {
+    if (_isLikeLoading) return;
+    setState(() => _isLikeLoading = true);
+    try {
+      await LikeService.toggleLike(widget.postId);
+      final isLiked = await LikeService.isPostLiked(widget.postId);
+      setState(() {
+        _isLiked = isLiked;
+        _likeCount = isLiked ? _likeCount + 1 : _likeCount - 1;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to like post: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isLikeLoading = false);
+    }
+  }
+
+  Future<void> _handleDoubleTap() async {
+    setState(() => _showHeart = true);
+    await _handleToggleLike();
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) setState(() => _showHeart = false);
   }
 
   @override
@@ -118,8 +147,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                       const Spacer(),
                       IconButton(
-                        icon:
-                        const Icon(Icons.more_vert, color: Colors.white),
+                        icon: const Icon(Icons.more_vert, color: Colors.white),
                         onPressed: () {},
                       ),
                     ],
@@ -127,64 +155,77 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 ),
 
                 if (media.isNotEmpty)
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CarouselSlider.builder(
-                        itemCount: media.length,
-                        options: CarouselOptions(
-                          height: 400,
-                          viewportFraction: 1.0,
-                          enableInfiniteScroll: false,
-                          onPageChanged: (index, reason) {
-                            setState(() {
-                              _currentImageIndex = index;
-                            });
-                          },
-                        ),
-                        itemBuilder: (context, index, realIndex) {
-                          final mediaItem = media[index];
-                          return Container(
-                            width: double.infinity,
-                            color: Colors.black,
-                            child: Image.network(
-                              mediaItem['media_url'],
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: Colors.grey.shade900,
-                                child: const Icon(
-                                  Icons.broken_image,
-                                  color: Colors.white,
-                                  size: 50,
+                  GestureDetector(
+                    onDoubleTap: _handleDoubleTap,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CarouselSlider.builder(
+                          itemCount: media.length,
+                          options: CarouselOptions(
+                            height: 400,
+                            viewportFraction: 1.0,
+                            enableInfiniteScroll: false,
+                            onPageChanged: (index, reason) {
+                              setState(() {
+                                _currentImageIndex = index;
+                              });
+                            },
+                          ),
+                          itemBuilder: (context, index, realIndex) {
+                            final mediaItem = media[index];
+                            return Container(
+                              width: double.infinity,
+                              color: Colors.black,
+                              child: Image.network(
+                                mediaItem['media_url'],
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey.shade900,
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.white,
+                                    size: 50,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      if (media.length > 1)
-                        Positioned(
-                          bottom: 10,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(
-                              media.length,
-                                  (index) => Container(
-                                width: 6,
-                                height: 6,
-                                margin:
-                                const EdgeInsets.symmetric(horizontal: 3),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _currentImageIndex == index
-                                      ? Colors.white
-                                      : Colors.white.withOpacity(0.4),
+                            );
+                          },
+                        ),
+                        if (media.length > 1)
+                          Positioned(
+                            bottom: 10,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                media.length,
+                                    (index) => Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _currentImageIndex == index
+                                        ? Colors.white
+                                        : Colors.white.withOpacity(0.4),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                        if (_showHeart)
+                          AnimatedOpacity(
+                            opacity: _showHeart ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: const Icon(
+                              Icons.favorite,
+                              color: Colors.white,
+                              size: 90,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
 
                 Padding(
@@ -208,32 +249,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               : Icons.favorite_border,
                           color: _isLiked ? Colors.red : Colors.white,
                         ),
-                        onPressed: _isLikeLoading
-                            ? null
-                            : () async {
-                          setState(() => _isLikeLoading = true);
-                          try {
-                            await LikeService.toggleLike(widget.postId);
-                            final isLiked = await LikeService.isPostLiked(widget.postId);
-                            setState(() {
-                              _isLiked = isLiked;
-                              _likeCount = isLiked
-                                  ? _likeCount + 1
-                                  : _likeCount - 1;
-                            });
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content:
-                                  Text('Failed to like post: $e'),
-                                ),
-                              );
-                            }
-                          } finally {
-                            setState(() => _isLikeLoading = false);
-                          }
-                        },
+                        onPressed: _isLikeLoading ? null : _handleToggleLike,
                       ),
 
                       IconButton(
