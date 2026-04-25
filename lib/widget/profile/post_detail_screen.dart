@@ -28,6 +28,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void initState() {
     super.initState();
     _postFuture = ProfileService.getMyPostById(widget.postId);
+    _initLikeStatus();
+  }
+
+  Future<void> _initLikeStatus() async {
+    try {
+      final isLiked = await LikeService.isPostLiked(widget.postId);
+      if (mounted) {
+        setState(() {
+          _isLiked = isLiked;
+          _likeInitialized = true;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -72,18 +85,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           final post = snapshot.data!;
           final media = post['media'] as List<dynamic>;
 
-          // Initialize like state only once from post data
-          if (!_likeInitialized) {
-            _isLiked = post['is_liked'] == true;
+          if (_likeCount == 0 && !_likeInitialized) {
             _likeCount = post['like_count'] ?? 0;
-            _likeInitialized = true;
           }
 
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Post Header
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -117,7 +126,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                 ),
 
-                // Media Carousel
                 if (media.isNotEmpty)
                   Stack(
                     alignment: Alignment.center,
@@ -154,7 +162,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           );
                         },
                       ),
-                      // Image indicators
                       if (media.length > 1)
                         Positioned(
                           bottom: 10,
@@ -180,13 +187,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ],
                   ),
 
-                // Action Buttons
                 Padding(
                   padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
-                      // Like button
                       IconButton(
                         icon: _isLikeLoading
                             ? const SizedBox(
@@ -209,9 +214,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           setState(() => _isLikeLoading = true);
                           try {
                             await LikeService.toggleLike(widget.postId);
+                            final isLiked = await LikeService.isPostLiked(widget.postId);
                             setState(() {
-                              _isLiked = !_isLiked;
-                              _likeCount = _isLiked
+                              _isLiked = isLiked;
+                              _likeCount = isLiked
                                   ? _likeCount + 1
                                   : _likeCount - 1;
                             });
@@ -233,16 +239,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       IconButton(
                         icon: const Icon(Icons.chat_bubble_outline,
                             color: Colors.white),
-                        onPressed: () {
-                          // TODO: Implement comment functionality
-                        },
+                        onPressed: () {},
                       ),
                       IconButton(
                         icon: const Icon(Icons.send_outlined,
                             color: Colors.white),
-                        onPressed: () {
-                          // TODO: Implement share functionality
-                        },
+                        onPressed: () {},
                       ),
                       const Spacer(),
                       IconButton(
@@ -252,15 +254,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               : Icons.bookmark_border,
                           color: Colors.white,
                         ),
-                        onPressed: () {
-                          // TODO: Implement save functionality
-                        },
+                        onPressed: () {},
                       ),
                     ],
                   ),
                 ),
 
-                // Likes count
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
@@ -274,7 +273,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
                 const SizedBox(height: 4),
 
-                // Caption
                 if (post['caption'] != null &&
                     post['caption'].toString().isNotEmpty)
                   Padding(
@@ -300,15 +298,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
                 const SizedBox(height: 4),
 
-                // View all comments
                 if (post['comment_count'] > 0)
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 4),
                     child: GestureDetector(
-                      onTap: () {
-                        // TODO: Navigate to comments screen
-                      },
+                      onTap: () {},
                       child: Text(
                         'View all ${post['comment_count']} comments',
                         style: TextStyle(
@@ -318,7 +313,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                   ),
 
-                // Timestamp
                 Padding(
                   padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
