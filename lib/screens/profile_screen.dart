@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:instamate/screens/edit_profile_screen.dart';
+import 'package:instamate/screens/setting_screen.dart';
 import 'package:instamate/widget/profile/post_detail_screen.dart';
 import '../services/profile_service.dart';
 
@@ -71,7 +72,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.menu),
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsPage(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
