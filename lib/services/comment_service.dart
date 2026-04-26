@@ -40,4 +40,22 @@ class CommentService {
       rethrow;
     }
   }
+
+  static Future<Map<String, dynamic>> toggleCommentLike(int commentId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await CommentApi.toggleCommentLike(token, commentId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data;
+      }
+
+      throw Exception(data['message'] ?? 'Failed to toggle comment like');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
