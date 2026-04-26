@@ -14,14 +14,17 @@ class CommentApi {
     );
   }
 
-  static Future<http.Response> addComment(String token, int postId, String comment) {
+  static Future<http.Response> addComment(String token, int postId, String comment, {int? parentId}) {
     return http.post(
       Uri.parse('$_baseUrl/$postId/comments'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'comment': comment}),
+      body: jsonEncode({
+        'comment': comment,
+        if (parentId != null) 'parent_id': parentId,
+      }),
     );
   }
 }

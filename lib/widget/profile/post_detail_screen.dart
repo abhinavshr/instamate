@@ -30,7 +30,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _commentsLoading = false;
 
   final TextEditingController _commentController = TextEditingController();
+  final FocusNode _commentFocusNode = FocusNode();
   bool _isPostingComment = false;
+
+  // Reply state
+  int? _replyingToId;
+  String? _replyingToUsername;
 
   @override
   void initState() {
@@ -43,6 +48,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   @override
   void dispose() {
     _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
   }
 
@@ -71,15 +77,40 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
+  void _handleReplyTap(int commentId, String username) {
+    setState(() {
+      _replyingToId = commentId;
+      _replyingToUsername = username;
+    });
+    _commentFocusNode.requestFocus();
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyingToId = null;
+      _replyingToUsername = null;
+    });
+    _commentController.clear();
+    _commentFocusNode.unfocus();
+  }
+
   Future<void> _handlePostComment() async {
     final text = _commentController.text.trim();
     if (text.isEmpty || _isPostingComment) return;
 
     setState(() => _isPostingComment = true);
     try {
-      await CommentService.addComment(widget.postId, text);
+      await CommentService.addComment(
+        widget.postId,
+        text,
+        parentId: _replyingToId,
+      );
       _commentController.clear();
       FocusScope.of(context).unfocus();
+      setState(() {
+        _replyingToId = null;
+        _replyingToUsername = null;
+      });
       await _loadComments();
     } catch (e) {
       if (mounted) {
@@ -198,7 +229,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                     const SizedBox(width: 16),
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () => _handleReplyTap(
+                        comment['id'] as int,
+                        comment['username'] as String,
+                      ),
                       child: Text(
                         'Reply',
                         style: TextStyle(
@@ -520,6 +554,37 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 ),
               ),
 
+              // ── Reply Banner ─────────────────────────────────────────────
+              if (_replyingToUsername != null)
+                Container(
+                  color: Colors.grey.shade900,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Replying to ',
+                        style: TextStyle(
+                            color: Colors.grey.shade400, fontSize: 12),
+                      ),
+                      Text(
+                        '@$_replyingToUsername',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: _cancelReply,
+                        child: Icon(Icons.close,
+                            color: Colors.grey.shade400, size: 16),
+                      ),
+                    ],
+                  ),
+                ),
+
               // ── Add Comment Bar ──────────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
@@ -546,26 +611,34 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     Expanded(
                       child: TextField(
                         controller: _commentController,
+                        focusNode: _commentFocusNode,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
-                          fontFamilyFallback: ['Apple Color Emoji', 'Noto Color Emoji'],
+                          fontFamilyFallback: [
+                            'Apple Color Emoji',
+                            'Noto Color Emoji'
+                          ],
                         ),
                         cursorColor: Colors.white,
                         keyboardType: TextInputType.multiline,
                         textInputAction: TextInputAction.newline,
                         maxLines: null,
-                        enableSuggestions: true,  // ✅ Fixed: was false, blocked emoji keyboard
-                        autocorrect: false,        // ✅ keeps autocorrect off but allows emoji
+                        enableSuggestions: true,
+                        autocorrect: false,
                         decoration: InputDecoration(
-                          hintText: 'Add a comment...',
-                          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                          hintText: _replyingToUsername != null
+                              ? 'Reply to @$_replyingToUsername...'
+                              : 'Add a comment...',
+                          hintStyle: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 14),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           filled: false,
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          contentPadding:
+                          const EdgeInsets.symmetric(vertical: 8),
                         ),
                       ),
                     ),
