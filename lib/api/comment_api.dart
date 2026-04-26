@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class CommentApi {
@@ -10,6 +11,17 @@ class CommentApi {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
+    );
+  }
+
+  static Future<http.Response> addComment(String token, int postId, String comment) {
+    return http.post(
+      Uri.parse('$_baseUrl/$postId/comments'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'comment': comment}),
     );
   }
 }
