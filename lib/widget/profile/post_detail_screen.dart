@@ -36,9 +36,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   bool _isDeletingPost = false;
 
-  // Reply state
   int? _replyingToId;
   String? _replyingToUsername;
+
+  final Map<int, bool> _commentLikeStatus = {};
+  final Map<int, int> _commentLikeCounts = {};
+  final Set<int> _commentLikeLoading = {};
 
   @override
   void initState() {
@@ -73,10 +76,43 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       final comments = await CommentService.getPostComments(widget.postId);
       if (mounted) {
-        setState(() => _comments = comments);
+        setState(() {
+          _comments = comments;
+          for (final comment in comments) {
+            final id = comment['id'] as int;
+            _commentLikeStatus[id] = (comment['is_liked'] == true) || (comment['is_liked'] == 1);
+            _commentLikeCounts[id] = comment['like_count'] as int? ?? 0;
+          }
+        });
       }
     } catch (_) {} finally {
       if (mounted) setState(() => _commentsLoading = false);
+    }
+  }
+
+  Future<void> _handleCommentLike(int commentId) async {
+    if (_commentLikeLoading.contains(commentId)) return;
+
+    final wasLiked = _commentLikeStatus[commentId] ?? false;
+    final previousCount = _commentLikeCounts[commentId] ?? 0;
+
+    setState(() {
+      _commentLikeLoading.add(commentId);
+      _commentLikeStatus[commentId] = !wasLiked;
+      _commentLikeCounts[commentId] = previousCount + (wasLiked ? -1 : 1);
+    });
+
+    try {
+      await CommentService.toggleCommentLike(commentId);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _commentLikeStatus[commentId] = wasLiked;
+          _commentLikeCounts[commentId] = previousCount;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _commentLikeLoading.remove(commentId));
     }
   }
 
@@ -244,17 +280,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _handleDeletePost(List<dynamic> media) async {
     setState(() => _isDeletingPost = true);
     try {
-      final mediaIds = media
-          .map((m) => m['id'] as int)
-          .toList();
-
+      final mediaIds = media.map((m) => m['id'] as int).toList();
       await PostService.deletePost(widget.postId, mediaIds);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Post deleted successfully')),
         );
-        Navigator.pop(context, true); // pass true so caller can refresh
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -282,6 +314,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Widget _buildCommentItem(Map<String, dynamic> comment) {
     final isReply = comment['_isReply'] as bool;
+    final commentId = comment['id'] as int;
+    final isLiked = _commentLikeStatus[commentId] ?? false;
+    final likeCount = _commentLikeCounts[commentId] ?? 0;
+    final isLoading = _commentLikeLoading.contains(commentId);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -343,7 +379,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     const SizedBox(width: 16),
                     GestureDetector(
                       onTap: () => _handleReplyTap(
-                        comment['id'] as int,
+                        commentId,
                         comment['username'] as String,
                       ),
                       child: Text(
@@ -361,11 +397,32 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
           ),
           GestureDetector(
-            onTap: () {},
-            child: Icon(
-              Icons.favorite_border,
-              color: Colors.grey.shade600,
-              size: 12,
+            onTap: () => _handleCommentLike(commentId),
+            child: Column(
+              children: [
+                isLoading
+                    ? SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: Colors.grey.shade600,
+                  ),
+                )
+                    : Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: isLiked ? Colors.red : Colors.grey.shade600,
+                  size: 12,
+                ),
+                if (likeCount > 0)
+                  Text(
+                    '$likeCount',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 10,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -437,7 +494,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Header ───────────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -470,8 +526,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ],
                         ),
                       ),
-
-                      // ── Media ────────────────────────────────────────────
                       if (media.isNotEmpty)
                         GestureDetector(
                           onDoubleTap: _handleDoubleTap,
@@ -551,8 +605,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             ],
                           ),
                         ),
-
-                      // ── Action Buttons ───────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
@@ -603,8 +655,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ],
                         ),
                       ),
-
-                      // ── Like Count ───────────────────────────────────────
                       Padding(
                         padding:
                         const EdgeInsets.symmetric(horizontal: 16),
@@ -618,10 +668,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 4),
-
-                      // ── Caption ──────────────────────────────────────────
                       if (post['caption'] != null &&
                           post['caption'].toString().isNotEmpty)
                         Padding(
@@ -646,10 +693,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             ),
                           ),
                         ),
-
                       const SizedBox(height: 8),
-
-                      // ── Comments ─────────────────────────────────────────
                       if (_commentsLoading)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -674,8 +718,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         )
                       else
                         ...commentTree.map(_buildCommentItem),
-
-                      // ── Timestamp ────────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
@@ -687,14 +729,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
-
-              // ── Reply Banner ─────────────────────────────────────────────
               if (_replyingToUsername != null)
                 Container(
                   color: Colors.grey.shade900,
@@ -724,8 +763,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ],
                   ),
                 ),
-
-              // ── Add Comment Bar ──────────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
                   color: Colors.black,
@@ -773,8 +810,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ? 'Reply to @$_replyingToUsername...'
                               : 'Add a comment...',
                           hintStyle: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 14),
+                              color: Colors.grey.shade500, fontSize: 14),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
