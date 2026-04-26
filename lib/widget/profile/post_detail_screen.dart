@@ -29,12 +29,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   List<Map<String, dynamic>> _comments = [];
   bool _commentsLoading = false;
 
+  final TextEditingController _commentController = TextEditingController();
+  bool _isPostingComment = false;
+
   @override
   void initState() {
     super.initState();
     _postFuture = ProfileService.getMyPostById(widget.postId);
     _initLikeStatus();
     _loadComments();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   Future<void> _initLikeStatus() async {
@@ -57,9 +66,29 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       if (mounted) {
         setState(() => _comments = comments);
       }
-    } catch (_) {}
-    finally {
+    } catch (_) {} finally {
       if (mounted) setState(() => _commentsLoading = false);
+    }
+  }
+
+  Future<void> _handlePostComment() async {
+    final text = _commentController.text.trim();
+    if (text.isEmpty || _isPostingComment) return;
+
+    setState(() => _isPostingComment = true);
+    try {
+      await CommentService.addComment(widget.postId, text);
+      _commentController.clear();
+      FocusScope.of(context).unfocus();
+      await _loadComments();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to post comment: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPostingComment = false);
     }
   }
 
@@ -93,15 +122,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (mounted) setState(() => _showHeart = false);
   }
 
-  // Builds flat comment list: top-level + their replies indented
   List<Map<String, dynamic>> _buildCommentTree() {
     final topLevel = _comments.where((c) => c['parent_id'] == null).toList();
     final result = <Map<String, dynamic>>[];
     for (final comment in topLevel) {
       result.add({...comment, '_isReply': false});
-      final replies = _comments
-          .where((c) => c['parent_id'] == comment['id'])
-          .toList();
+      final replies =
+      _comments.where((c) => c['parent_id'] == comment['id']).toList();
       for (final reply in replies) {
         result.add({...reply, '_isReply': true});
       }
@@ -249,7 +276,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Header ──────────────────────────────────────────
+                      // ── Header ───────────────────────────────────────────
                       Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -439,8 +466,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 ),
                                 TextSpan(
                                   text: post['caption'],
-                                  style:
-                                  const TextStyle(color: Colors.white),
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                               ],
                             ),
@@ -494,7 +520,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 ),
               ),
 
-              // ── Add Comment Bar ─────────────────────────────────────────
+              // ── Add Comment Bar ──────────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
                   color: Colors.black,
@@ -519,18 +545,33 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
-                        style: const TextStyle(color: Colors.white),
+                        controller: _commentController,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        cursorColor: Colors.white,
                         decoration: InputDecoration(
                           hintText: 'Add a comment...',
-                          hintStyle:
-                          TextStyle(color: Colors.grey.shade500),
+                          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
                           isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
                         ),
+                        onSubmitted: (_) => _handlePostComment(),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {},
+                    _isPostingComment
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.blueAccent,
+                      ),
+                    )
+                        : TextButton(
+                      onPressed: _handlePostComment,
                       child: const Text(
                         'Post',
                         style: TextStyle(
