@@ -34,10 +34,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Future<void> _initLikeStatus() async {
     try {
-      final isLiked = await LikeService.isPostLiked(widget.postId);
+      final result = await LikeService.getPostLikes(widget.postId);
       if (mounted) {
         setState(() {
-          _isLiked = isLiked;
+          _isLiked = result['isLiked'] as bool;
+          _likeCount = result['totalLikes'] as int;
           _likeInitialized = true;
         });
       }
@@ -49,11 +50,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     setState(() => _isLikeLoading = true);
     try {
       await LikeService.toggleLike(widget.postId);
-      final isLiked = await LikeService.isPostLiked(widget.postId);
-      setState(() {
-        _isLiked = isLiked;
-        _likeCount = isLiked ? _likeCount + 1 : _likeCount - 1;
-      });
+      final result = await LikeService.getPostLikes(widget.postId);
+      if (mounted) {
+        setState(() {
+          _isLiked = result['isLiked'] as bool;
+          _likeCount = result['totalLikes'] as int;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -61,7 +64,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         );
       }
     } finally {
-      setState(() => _isLikeLoading = false);
+      if (mounted) setState(() => _isLikeLoading = false);
     }
   }
 
@@ -113,10 +116,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
           final post = snapshot.data!;
           final media = post['media'] as List<dynamic>;
-
-          if (_likeCount == 0 && !_likeInitialized) {
-            _likeCount = post['like_count'] ?? 0;
-          }
 
           return SingleChildScrollView(
             child: Column(
@@ -251,7 +250,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                         onPressed: _isLikeLoading ? null : _handleToggleLike,
                       ),
-
                       IconButton(
                         icon: const Icon(Icons.chat_bubble_outline,
                             color: Colors.white),
@@ -279,7 +277,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
-                    '$_likeCount likes',
+                    _likeInitialized
+                        ? '$_likeCount likes'
+                        : '${post['like_count'] ?? 0} likes',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,

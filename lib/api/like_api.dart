@@ -22,4 +22,14 @@ class LikeApi {
       },
     );
   }
+
+  static Future<http.Response> getPostLikes(String token, int postId) {
+    return http.get(
+      Uri.parse('$_baseUrl/$postId/likes'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
