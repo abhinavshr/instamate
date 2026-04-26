@@ -3,6 +3,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import '../../services/profile_service.dart';
 import '../../services/like_service.dart';
 import '../../services/comment_service.dart';
+import '../../services/post_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final int postId;
@@ -32,6 +33,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   bool _isPostingComment = false;
+
+  bool _isDeletingPost = false;
 
   // Reply state
   int? _replyingToId;
@@ -153,6 +156,116 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (mounted) setState(() => _showHeart = false);
   }
 
+  void _showPostOptions(List<dynamic> media) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey.shade900,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade600,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text(
+                'Delete Post',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeletePost(media);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.cancel_outlined, color: Colors.grey.shade400),
+              title: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey.shade400),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeletePost(List<dynamic> media) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        title: const Text(
+          'Delete Post?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'This will permanently delete your post and all its media. This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey.shade400),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _handleDeletePost(media);
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDeletePost(List<dynamic> media) async {
+    setState(() => _isDeletingPost = true);
+    try {
+      final mediaIds = media
+          .map((m) => m['id'] as int)
+          .toList();
+
+      await PostService.deletePost(widget.postId, mediaIds);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post deleted successfully')),
+        );
+        Navigator.pop(context, true); // pass true so caller can refresh
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isDeletingPost = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete post: $e')),
+        );
+      }
+    }
+  }
+
   List<Map<String, dynamic>> _buildCommentTree() {
     final topLevel = _comments.where((c) => c['parent_id'] == null).toList();
     final result = <Map<String, dynamic>>[];
@@ -272,7 +385,21 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           style: TextStyle(color: Colors.white),
         ),
       ),
-      body: FutureBuilder<Map<String, dynamic>?>(
+      body: _isDeletingPost
+          ? const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 16),
+            Text(
+              'Deleting post...',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+      )
+          : FutureBuilder<Map<String, dynamic>?>(
         future: _postFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -338,7 +465,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             IconButton(
                               icon: const Icon(Icons.more_vert,
                                   color: Colors.white),
-                              onPressed: () {},
+                              onPressed: () => _showPostOptions(media),
                             ),
                           ],
                         ),
@@ -358,10 +485,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   viewportFraction: 1.0,
                                   enableInfiniteScroll: false,
                                   onPageChanged: (index, reason) {
-                                    setState(() => _currentImageIndex = index);
+                                    setState(
+                                            () => _currentImageIndex = index);
                                   },
                                 ),
-                                itemBuilder: (context, index, realIndex) {
+                                itemBuilder:
+                                    (context, index, realIndex) {
                                   final mediaItem = media[index];
                                   return Container(
                                     width: double.infinity,
@@ -369,14 +498,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                     child: Image.network(
                                       mediaItem['media_url'],
                                       fit: BoxFit.contain,
-                                      errorBuilder: (_, __, ___) => Container(
-                                        color: Colors.grey.shade900,
-                                        child: const Icon(
-                                          Icons.broken_image,
-                                          color: Colors.white,
-                                          size: 50,
-                                        ),
-                                      ),
+                                      errorBuilder: (_, __, ___) =>
+                                          Container(
+                                            color: Colors.grey.shade900,
+                                            child: const Icon(
+                                              Icons.broken_image,
+                                              color: Colors.white,
+                                              size: 50,
+                                            ),
+                                          ),
                                     ),
                                   );
                                 },
@@ -385,19 +515,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 Positioned(
                                   bottom: 10,
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisAlignment:
+                                    MainAxisAlignment.center,
                                     children: List.generate(
                                       media.length,
                                           (index) => Container(
                                         width: 6,
                                         height: 6,
-                                        margin: const EdgeInsets.symmetric(
+                                        margin:
+                                        const EdgeInsets.symmetric(
                                             horizontal: 3),
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: _currentImageIndex == index
+                                          color: _currentImageIndex ==
+                                              index
                                               ? Colors.white
-                                              : Colors.white.withOpacity(0.4),
+                                              : Colors.white
+                                              .withOpacity(0.4),
                                         ),
                                       ),
                                     ),
@@ -406,7 +540,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               if (_showHeart)
                                 AnimatedOpacity(
                                   opacity: _showHeart ? 1.0 : 0.0,
-                                  duration: const Duration(milliseconds: 300),
+                                  duration:
+                                  const Duration(milliseconds: 300),
                                   child: const Icon(
                                     Icons.favorite,
                                     color: Colors.white,
@@ -437,11 +572,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 _isLiked
                                     ? Icons.favorite
                                     : Icons.favorite_border,
-                                color:
-                                _isLiked ? Colors.red : Colors.white,
+                                color: _isLiked
+                                    ? Colors.red
+                                    : Colors.white,
                               ),
-                              onPressed:
-                              _isLikeLoading ? null : _handleToggleLike,
+                              onPressed: _isLikeLoading
+                                  ? null
+                                  : _handleToggleLike,
                             ),
                             IconButton(
                               icon: const Icon(Icons.chat_bubble_outline,
@@ -469,7 +606,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
                       // ── Like Count ───────────────────────────────────────
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           _likeInitialized
                               ? '$_likeCount likes'
@@ -487,7 +625,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       if (post['caption'] != null &&
                           post['caption'].toString().isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16),
                           child: RichText(
                             text: TextSpan(
                               children: [
@@ -500,7 +639,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                 ),
                                 TextSpan(
                                   text: post['caption'],
-                                  style: const TextStyle(color: Colors.white),
+                                  style: const TextStyle(
+                                      color: Colors.white),
                                 ),
                               ],
                             ),
@@ -558,8 +698,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               if (_replyingToUsername != null)
                 Container(
                   color: Colors.grey.shade900,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
                       Text(
@@ -590,14 +730,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 decoration: BoxDecoration(
                   color: Colors.black,
                   border: Border(
-                    top: BorderSide(color: Colors.grey.shade800, width: 0.5),
+                    top: BorderSide(
+                        color: Colors.grey.shade800, width: 0.5),
                   ),
                 ),
                 padding: EdgeInsets.only(
                   left: 16,
                   right: 16,
                   top: 10,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+                  bottom:
+                  MediaQuery.of(context).viewInsets.bottom + 10,
                 ),
                 child: Row(
                   children: [
@@ -631,7 +773,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ? 'Reply to @$_replyingToUsername...'
                               : 'Add a comment...',
                           hintStyle: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 14),
+                              color: Colors.grey.shade500,
+                              fontSize: 14),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,

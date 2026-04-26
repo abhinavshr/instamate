@@ -237,13 +237,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         final firstMedia = media.isNotEmpty ? media[0]['media_url'] : null;
 
                         return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            final deleted = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => PostDetailScreen(postId: post['post_id']),
                               ),
                             );
+
+                            if (deleted == true && mounted) {
+                              setState(() {
+                                _myPostsFuture = ProfileService.getMyPosts();
+                              });
+                            }
                           },
                           child: Stack(
                             fit: StackFit.expand,
