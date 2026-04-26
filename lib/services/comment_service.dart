@@ -23,12 +23,12 @@ class CommentService {
     }
   }
 
-  static Future<Map<String, dynamic>> addComment(int postId, String comment) async {
+  static Future<Map<String, dynamic>> addComment(int postId, String comment, {int? parentId}) async {
     try {
       final token = await AuthService.getToken();
       if (token == null) throw Exception('User not authenticated');
 
-      final response = await CommentApi.addComment(token, postId, comment);
+      final response = await CommentApi.addComment(token, postId, comment, parentId: parentId);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
