@@ -546,8 +546,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     Expanded(
                       child: TextField(
                         controller: _commentController,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontFamilyFallback: ['Apple Color Emoji', 'Noto Color Emoji'],
+                        ),
                         cursorColor: Colors.white,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                        maxLines: null,
+                        enableSuggestions: true,  // ✅ Fixed: was false, blocked emoji keyboard
+                        autocorrect: false,        // ✅ keeps autocorrect off but allows emoji
                         decoration: InputDecoration(
                           hintText: 'Add a comment...',
                           hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
@@ -558,7 +567,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(vertical: 8),
                         ),
-                        onSubmitted: (_) => _handlePostComment(),
                       ),
                     ),
                     _isPostingComment
