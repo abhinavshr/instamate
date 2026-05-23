@@ -48,4 +48,14 @@ class CommentApi {
       },
     );
   }
+
+  static Future<http.Response> deleteComment(String token, int commentId) {
+    return http.delete(
+      Uri.parse('$_commentsBaseUrl/$commentId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }

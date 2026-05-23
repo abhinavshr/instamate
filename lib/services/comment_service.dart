@@ -79,4 +79,20 @@ class CommentService {
       rethrow;
     }
   }
+
+  static Future<void> deleteComment(int commentId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await CommentApi.deleteComment(token, commentId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception(data['message'] ?? 'Failed to delete comment');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

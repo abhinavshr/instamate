@@ -144,14 +144,24 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  void _handleDeleteComment(int commentId) {
-    setState(() {
-      _deletedCommentIds.add(commentId);
-      // Remove the comment and any of its replies
-      _comments.removeWhere(
-            (c) => c['id'] == commentId || c['parent_id'] == commentId,
-      );
-    });
+  Future<void> _handleDeleteComment(int commentId) async {
+    try {
+      await CommentService.deleteComment(commentId);
+      if (mounted) {
+        setState(() {
+          _deletedCommentIds.add(commentId);
+          _comments.removeWhere(
+                (c) => c['id'] == commentId || c['parent_id'] == commentId,
+          );
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete comment: $e')),
+        );
+      }
+    }
   }
 
   void _showCommentOptions(int commentId) {
