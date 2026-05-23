@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 class CommentApi {
   static const String _baseUrl = 'http://10.0.2.2:5000/api/posts';
+  static const String _commentsBaseUrl = 'http://10.0.2.2:5000/api/comments';
 
   static Future<http.Response> getPostComments(String token, int postId) {
     return http.get(
@@ -30,7 +31,17 @@ class CommentApi {
 
   static Future<http.Response> toggleCommentLike(String token, int commentId) {
     return http.post(
-      Uri.parse('http://10.0.2.2:5000/api/comments/$commentId/like'),
+      Uri.parse('$_commentsBaseUrl/$commentId/like'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
+
+  static Future<http.Response> getCommentLikes(String token, int commentId) {
+    return http.get(
+      Uri.parse('$_commentsBaseUrl/$commentId/likes'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

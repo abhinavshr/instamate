@@ -76,18 +76,40 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       final comments = await CommentService.getPostComments(widget.postId);
       if (mounted) {
-        setState(() {
-          _comments = comments;
-          for (final comment in comments) {
-            final id = comment['id'] as int;
-            _commentLikeStatus[id] = (comment['is_liked'] == true) || (comment['is_liked'] == 1);
-            _commentLikeCounts[id] = comment['like_count'] as int? ?? 0;
-          }
-        });
+        setState(() => _comments = comments);
+
+        // Fetch fresh like status for each comment from the dedicated endpoint
+        await _loadCommentLikes(comments);
       }
     } catch (_) {} finally {
       if (mounted) setState(() => _commentsLoading = false);
     }
+  }
+
+  Future<void> _loadCommentLikes(List<Map<String, dynamic>> comments) async {
+    final futures = comments.map((comment) async {
+      final id = comment['id'] as int;
+      try {
+        final result = await CommentService.getCommentLikes(id);
+        if (mounted) {
+          setState(() {
+            _commentLikeStatus[id] = result['is_liked'] as bool;
+            _commentLikeCounts[id] = result['likes'] as int;
+          });
+        }
+      } catch (_) {
+        // Fallback to data from comment list response
+        if (mounted) {
+          setState(() {
+            _commentLikeStatus[id] =
+                (comment['is_liked'] == true) || (comment['is_liked'] == 1);
+            _commentLikeCounts[id] = comment['like_count'] as int? ?? 0;
+          });
+        }
+      }
+    });
+
+    await Future.wait(futures);
   }
 
   Future<void> _handleCommentLike(int commentId) async {
@@ -104,6 +126,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     try {
       await CommentService.toggleCommentLike(commentId);
+
+      // Fetch the accurate like count after toggling
+      final result = await CommentService.getCommentLikes(commentId);
+      if (mounted) {
+        setState(() {
+          _commentLikeStatus[commentId] = result['is_liked'] as bool;
+          _commentLikeCounts[commentId] = result['likes'] as int;
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -810,7 +841,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ? 'Reply to @$_replyingToUsername...'
                               : 'Add a comment...',
                           hintStyle: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 14),
+                              color: Colors.grey.shade500,
+                              fontSize: 14),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
