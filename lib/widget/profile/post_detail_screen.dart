@@ -43,6 +43,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   final Map<int, int> _commentLikeCounts = {};
   final Set<int> _commentLikeLoading = {};
 
+  final Set<int> _deletedCommentIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -77,8 +79,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       final comments = await CommentService.getPostComments(widget.postId);
       if (mounted) {
         setState(() => _comments = comments);
-
-        // Fetch fresh like status for each comment from the dedicated endpoint
         await _loadCommentLikes(comments);
       }
     } catch (_) {} finally {
@@ -98,7 +98,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           });
         }
       } catch (_) {
-        // Fallback to data from comment list response
         if (mounted) {
           setState(() {
             _commentLikeStatus[id] =
@@ -126,8 +125,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     try {
       await CommentService.toggleCommentLike(commentId);
-
-      // Fetch the accurate like count after toggling
       final result = await CommentService.getCommentLikes(commentId);
       if (mounted) {
         setState(() {
@@ -145,6 +142,63 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     } finally {
       if (mounted) setState(() => _commentLikeLoading.remove(commentId));
     }
+  }
+
+  void _handleDeleteComment(int commentId) {
+    setState(() {
+      _deletedCommentIds.add(commentId);
+      // Remove the comment and any of its replies
+      _comments.removeWhere(
+            (c) => c['id'] == commentId || c['parent_id'] == commentId,
+      );
+    });
+  }
+
+  void _showCommentOptions(int commentId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey.shade900,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade600,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text(
+                'Delete comment',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _handleDeleteComment(commentId);
+              },
+            ),
+            ListTile(
+              leading:
+              Icon(Icons.cancel_outlined, color: Colors.grey.shade400),
+              title: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey.shade400),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   void _handleReplyTap(int commentId, String username) {
@@ -247,7 +301,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text(
                 'Delete Post',
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                style:
+                TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -255,7 +310,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.cancel_outlined, color: Colors.grey.shade400),
+              leading:
+              Icon(Icons.cancel_outlined, color: Colors.grey.shade400),
               title: Text(
                 'Cancel',
                 style: TextStyle(color: Colors.grey.shade400),
@@ -353,7 +409,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     return Padding(
       padding: EdgeInsets.only(
         left: isReply ? 52.0 : 16.0,
-        right: 16,
+        right: 8,
         top: 8,
         bottom: 4,
       ),
@@ -427,33 +483,49 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               ],
             ),
           ),
+          // Like button
           GestureDetector(
             onTap: () => _handleCommentLike(commentId),
-            child: Column(
-              children: [
-                isLoading
-                    ? SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: Colors.grey.shade600,
-                  ),
-                )
-                    : Icon(
-                  isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: isLiked ? Colors.red : Colors.grey.shade600,
-                  size: 12,
-                ),
-                if (likeCount > 0)
-                  Text(
-                    '$likeCount',
-                    style: TextStyle(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                children: [
+                  isLoading
+                      ? SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
                       color: Colors.grey.shade600,
-                      fontSize: 10,
                     ),
+                  )
+                      : Icon(
+                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: isLiked ? Colors.red : Colors.grey.shade600,
+                    size: 12,
                   ),
-              ],
+                  if (likeCount > 0)
+                    Text(
+                      '$likeCount',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 10,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // Three-dot menu button
+          GestureDetector(
+            onTap: () => _showCommentOptions(commentId),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 2, top: 2),
+              child: Icon(
+                Icons.more_vert,
+                color: Colors.grey.shade600,
+                size: 16,
+              ),
             ),
           ),
         ],
@@ -525,6 +597,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Header row
                       Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -557,6 +630,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ],
                         ),
                       ),
+                      // Media carousel
                       if (media.isNotEmpty)
                         GestureDetector(
                           onDoubleTap: _handleDoubleTap,
@@ -636,6 +710,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             ],
                           ),
                         ),
+                      // Action row
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
@@ -686,6 +761,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ],
                         ),
                       ),
+                      // Like count
                       Padding(
                         padding:
                         const EdgeInsets.symmetric(horizontal: 16),
@@ -700,6 +776,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      // Caption
                       if (post['caption'] != null &&
                           post['caption'].toString().isNotEmpty)
                         Padding(
@@ -725,6 +802,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           ),
                         ),
                       const SizedBox(height: 8),
+                      // Comments section
                       if (_commentsLoading)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -749,6 +827,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         )
                       else
                         ...commentTree.map(_buildCommentItem),
+                      // Timestamp
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
@@ -765,6 +844,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                 ),
               ),
+              // Replying to banner
               if (_replyingToUsername != null)
                 Container(
                   color: Colors.grey.shade900,
@@ -794,6 +874,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ],
                   ),
                 ),
+              // Comment input bar
               Container(
                 decoration: BoxDecoration(
                   color: Colors.black,
@@ -806,8 +887,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   left: 16,
                   right: 16,
                   top: 10,
-                  bottom:
-                  MediaQuery.of(context).viewInsets.bottom + 10,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 10,
                 ),
                 child: Row(
                   children: [
@@ -841,8 +921,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               ? 'Reply to @$_replyingToUsername...'
                               : 'Add a comment...',
                           hintStyle: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 14),
+                              color: Colors.grey.shade500, fontSize: 14),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
