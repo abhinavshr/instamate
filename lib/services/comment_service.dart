@@ -58,4 +58,25 @@ class CommentService {
       rethrow;
     }
   }
+
+  static Future<Map<String, dynamic>> getCommentLikes(int commentId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await CommentApi.getCommentLikes(token, commentId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'likes': data['likes'] as int,
+          'is_liked': data['is_liked'] as bool,
+        };
+      }
+
+      throw Exception(data['message'] ?? 'Failed to fetch comment likes');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
