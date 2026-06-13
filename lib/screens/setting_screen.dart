@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:instamate/screens/auth_check_screen.dart';
 import 'package:instamate/services/auth_service.dart';
+import 'package:instamate/services/profile_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -32,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _privateAccount = false;
   bool _notifications = true;
   bool _dataUsage = false;
+  bool _isLoadingPrivacy = true;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -42,6 +44,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _buildAllItems();
+    _loadPrivacyStatus();
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.toLowerCase();
@@ -49,10 +52,61 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
 
+  Future<void> _loadPrivacyStatus() async {
+    try {
+      final profile = await ProfileService.getProfile();
+      if (profile != null && mounted) {
+        setState(() {
+          // Adjust the key/casting below to match your backend's field
+          final isPrivate = profile['is_private'];
+          _privateAccount = isPrivate == true || isPrivate == 1;
+          _isLoadingPrivacy = false;
+          _buildAllItems();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingPrivacy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _togglePrivateAccount(bool value) async {
+    final previousValue = _privateAccount;
+
+    setState(() {
+      _privateAccount = value;
+      _buildAllItems();
+    });
+
+    try {
+      await ProfileService.updatePrivacy(value);
+    } catch (e) {
+      // Revert on failure
+      if (mounted) {
+        setState(() {
+          _privateAccount = previousValue;
+          _buildAllItems();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update privacy: $e')),
+        );
+      }
+    }
+  }
+
   void _buildAllItems() {
     _allItems = [
       // Your account
-      const _SettingsItem(icon: Icons.person_outline, title: 'Account privacy', subtitle: 'Private', section: 'Your account'),
+      _SettingsItem(
+        icon: Icons.person_outline,
+        title: 'Account privacy',
+        subtitle: _privateAccount ? 'Private' : 'Public',
+        section: 'Your account',
+      ),
       const _SettingsItem(icon: Icons.lock_outline, title: 'Password and security', section: 'Your account'),
       const _SettingsItem(icon: Icons.smartphone, title: 'Apps and websites', section: 'Your account'),
       const _SettingsItem(icon: Icons.email_outlined, title: 'Email notifications', section: 'Your account'),
@@ -76,7 +130,13 @@ class _SettingsPageState extends State<SettingsPage> {
       const _SettingsItem(icon: Icons.group_outlined, title: 'Suggested content', section: 'What you see'),
 
       // Who can see your content
-      _SettingsItem(icon: Icons.lock_outline, title: 'Private account', section: 'Who can see your content', isSwitch: true, switchValue: _privateAccount),
+      _SettingsItem(
+        icon: Icons.lock_outline,
+        title: 'Private account',
+        section: 'Who can see your content',
+        isSwitch: true,
+        switchValue: _privateAccount,
+      ),
       const _SettingsItem(icon: Icons.close, title: 'Close Friends', section: 'Who can see your content'),
       const _SettingsItem(icon: Icons.people_outline, title: 'Blocked accounts', section: 'Who can see your content'),
       const _SettingsItem(icon: Icons.hide_image_outlined, title: 'Muted accounts', section: 'Who can see your content'),
@@ -221,7 +281,11 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         // Account section
         _buildSectionHeader('Your account'),
-        _buildNavItem(Icons.person_outline, 'Account privacy', subtitle: 'Private'),
+        _buildNavItem(
+          Icons.person_outline,
+          'Account privacy',
+          subtitle: _privateAccount ? 'Private' : 'Public',
+        ),
         _buildNavItem(Icons.lock_outline, 'Password and security'),
         _buildNavItem(Icons.smartphone, 'Apps and websites'),
         _buildNavItem(Icons.email_outlined, 'Email notifications'),
@@ -252,7 +316,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Icons.lock_outline,
           'Private account',
           _privateAccount,
-              (v) => setState(() => _privateAccount = v),
+          _isLoadingPrivacy ? null : _togglePrivateAccount,
         ),
         _buildNavItem(Icons.close, 'Close Friends'),
         _buildNavItem(Icons.people_outline, 'Blocked accounts'),
@@ -364,7 +428,7 @@ class _SettingsPageState extends State<SettingsPage> {
         item.icon,
         item.title,
         _privateAccount,
-            (v) => setState(() => _privateAccount = v),
+        _isLoadingPrivacy ? null : _togglePrivateAccount,
       );
     } else if (item.title == 'Use less mobile data') {
       return _buildSwitchItem(
@@ -430,7 +494,7 @@ class _SettingsPageState extends State<SettingsPage> {
       IconData icon,
       String title,
       bool value,
-      ValueChanged<bool> onChanged,
+      ValueChanged<bool>? onChanged,
       ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -444,11 +508,18 @@ class _SettingsPageState extends State<SettingsPage> {
               style: const TextStyle(fontSize: 15, color: Colors.black),
             ),
           ),
-          CupertinoSwitch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Colors.black,
-          ),
+          if (_isLoadingPrivacy && title == 'Private account')
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            CupertinoSwitch(
+              value: value,
+              onChanged: onChanged,
+              activeColor: Colors.black,
+            ),
         ],
       ),
     );
