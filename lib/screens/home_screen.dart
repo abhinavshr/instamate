@@ -84,9 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   width: 60,
                   height: 60,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [
                         Color(0xFFfeda75),
                         Color(0xFFd62976),
@@ -177,9 +177,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 trailing: const Icon(Icons.more_vert),
               ),
 
-              // Post image
+              // Post image / slideable images
               if (media.isNotEmpty)
-                Image.network(
+                media.length == 1
+                    ? Image.network(
                   media[0]['media_url'],
                   height: 300,
                   width: double.infinity,
@@ -188,10 +189,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 300,
                     color: Colors.grey.shade300,
                     child: const Center(
-                      child: Icon(Icons.broken_image, size: 80, color: Colors.white),
+                      child: Icon(Icons.broken_image,
+                          size: 80, color: Colors.white),
                     ),
                   ),
                 )
+                    : _slideableImages(media)
               else
                 Container(
                   height: 300,
@@ -203,7 +206,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Actions
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
                     Icon(
@@ -230,9 +234,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               // Caption
-              if (post['caption'] != null && post['caption'].toString().isNotEmpty)
+              if (post['caption'] != null &&
+                  post['caption'].toString().isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   child: RichText(
                     text: TextSpan(
                       style: const TextStyle(color: Colors.black),
@@ -251,6 +257,93 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  // ---------------- SLIDEABLE IMAGES ----------------
+  Widget _slideableImages(List<dynamic> media) {
+    final PageController controller = PageController();
+    final ValueNotifier<int> currentPage = ValueNotifier(0);
+
+    return SizedBox(
+      height: 300,
+      child: Stack(
+        children: [
+          // Slideable images
+          PageView.builder(
+            controller: controller,
+            itemCount: media.length,
+            onPageChanged: (index) => currentPage.value = index,
+            itemBuilder: (context, index) {
+              return Image.network(
+                media[index]['media_url'],
+                height: 300,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 300,
+                  color: Colors.grey.shade300,
+                  child: const Center(
+                    child: Icon(Icons.broken_image,
+                        size: 80, color: Colors.white),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Dot indicators
+          Positioned(
+            bottom: 8,
+            left: 0,
+            right: 0,
+            child: ValueListenableBuilder<int>(
+              valueListenable: currentPage,
+              builder: (context, page, _) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(media.length, (index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: page == index ? 8 : 6,
+                      height: page == index ? 8 : 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: page == index
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.5),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ),
+
+          // Image count badge
+          Positioned(
+            top: 8,
+            right: 8,
+            child: ValueListenableBuilder<int>(
+              valueListenable: currentPage,
+              builder: (context, page, _) {
+                return Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${page + 1}/${media.length}',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
