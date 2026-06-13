@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/home_service.dart';
+import '../services/like_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,11 +13,17 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _feed = [];
   bool _isLoading = true;
   String? _error;
+  final Map<int, ValueNotifier<bool>> _heartAnimations = {};
 
   @override
   void initState() {
     super.initState();
     _loadFeed();
+  }
+
+  ValueNotifier<bool> _getHeartNotifier(int index) {
+    _heartAnimations[index] ??= ValueNotifier(false);
+    return _heartAnimations[index]!;
   }
 
   Future<void> _loadFeed() async {
@@ -31,6 +38,40 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _toggleLike(int index) async {
+    final post = _feed[index];
+    final postId = post['post_id'] as int;
+    final isLiked = post['is_liked'] as bool;
+
+    // Show heart animation only when liking
+    if (!isLiked) {
+      _getHeartNotifier(index).value = true;
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _getHeartNotifier(index).value = false;
+      });
+    }
+
+    // Optimistic update
+    setState(() {
+      _feed[index]['is_liked'] = !isLiked;
+      _feed[index]['like_count'] =
+      isLiked ? post['like_count'] - 1 : post['like_count'] + 1;
+    });
+
+    try {
+      await LikeService.toggleLike(postId);
+    } catch (e) {
+      // Revert on failure
+      setState(() {
+        _feed[index]['is_liked'] = isLiked;
+        _feed[index]['like_count'] = post['like_count'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update like')),
+      );
     }
   }
 
@@ -177,32 +218,58 @@ class _HomeScreenState extends State<HomeScreen> {
                 trailing: const Icon(Icons.more_vert),
               ),
 
-              // Post image / slideable images
-              if (media.isNotEmpty)
-                media.length == 1
-                    ? Image.network(
-                  media[0]['media_url'],
-                  height: 300,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 300,
-                    color: Colors.grey.shade300,
-                    child: const Center(
-                      child: Icon(Icons.broken_image,
-                          size: 80, color: Colors.white),
+              // Post image with double tap to like
+              GestureDetector(
+                onDoubleTap: () => _toggleLike(index),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Image
+                    media.isNotEmpty
+                        ? media.length == 1
+                        ? Image.network(
+                      media[0]['media_url'],
+                      height: 300,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(
+                            height: 300,
+                            color: Colors.grey.shade300,
+                            child: const Center(
+                              child: Icon(Icons.broken_image,
+                                  size: 80, color: Colors.white),
+                            ),
+                          ),
+                    )
+                        : _slideableImages(media)
+                        : Container(
+                      height: 300,
+                      color: Colors.grey.shade300,
+                      child: const Center(
+                        child: Icon(Icons.image,
+                            size: 80, color: Colors.white),
+                      ),
                     ),
-                  ),
-                )
-                    : _slideableImages(media)
-              else
-                Container(
-                  height: 300,
-                  color: Colors.grey.shade300,
-                  child: const Center(
-                    child: Icon(Icons.image, size: 80, color: Colors.white),
-                  ),
+
+                    // Heart animation overlay
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _getHeartNotifier(index),
+                      builder: (context, show, _) {
+                        return AnimatedOpacity(
+                          opacity: show ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 300),
+                          child: const Icon(
+                            Icons.favorite,
+                            color: Colors.white,
+                            size: 100,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
+              ),
 
               // Actions
               Padding(
@@ -210,9 +277,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    Icon(
-                      isLiked ? Icons.favorite : Icons.favorite_border,
-                      color: isLiked ? Colors.red : Colors.black,
+                    GestureDetector(
+                      onTap: () => _toggleLike(index),
+                      child: Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border,
+                        color: isLiked ? Colors.red : Colors.black,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     const Icon(Icons.chat_bubble_outline),
@@ -270,7 +340,6 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 300,
       child: Stack(
         children: [
-          // Slideable images
           PageView.builder(
             controller: controller,
             itemCount: media.length,
