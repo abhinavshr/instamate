@@ -137,4 +137,18 @@ class ProfileService {
       rethrow;
     }
   }
+
+  static Future<bool> updatePrivacy(bool isPrivate) async {
+    final token = await AuthService.getToken();
+    if (token == null) throw Exception('User not authenticated');
+
+    final response = await ProfileApi.updatePrivacy(token, isPrivate);
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return isPrivate;
+    }
+
+    throw Exception(data['message'] ?? 'Failed to update privacy setting');
+  }
 }

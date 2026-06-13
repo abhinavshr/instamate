@@ -91,5 +91,16 @@ class ProfileApi {
       },
     );
   }
+
+  static Future<http.Response> updatePrivacy(String token, bool isPrivate) {
+    return http.put(
+      Uri.parse('$_baseUrl/privacy'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'is_private': isPrivate ? 1 : 0}),
+    );
+  }
 }
 
