@@ -1,14 +1,44 @@
 import 'package:flutter/material.dart';
+import '../services/home_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<dynamic> _feed = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeed();
+  }
+
+  Future<void> _loadFeed() async {
+    try {
+      final feed = await HomeService.getHomeFeed();
+      setState(() {
+        _feed = feed;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      // AppBar
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -35,7 +65,6 @@ class HomeScreen extends StatelessWidget {
           Expanded(child: _feedSection()),
         ],
       ),
-
     );
   }
 
@@ -94,77 +123,135 @@ class HomeScreen extends StatelessWidget {
 
   // ---------------- FEED ----------------
   Widget _feedSection() {
-    return ListView.builder(
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Post header
-            ListTile(
-              leading: const CircleAvatar(backgroundColor: Colors.grey),
-              title: const Text(
-                'username',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              trailing: const Icon(Icons.more_vert),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _loadFeed,
+              child: const Text('Retry'),
             ),
+          ],
+        ),
+      );
+    }
 
-            // Post image
-            Container(
-              height: 300,
-              color: Colors.grey.shade300,
-              child: const Center(
-                child: Icon(Icons.image, size: 80, color: Colors.white),
+    if (_feed.isEmpty) {
+      return const Center(child: Text('No posts yet'));
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadFeed,
+      child: ListView.builder(
+        itemCount: _feed.length,
+        itemBuilder: (context, index) {
+          final post = _feed[index];
+          final media = post['media'] as List<dynamic>;
+          final isLiked = post['is_liked'] as bool;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Post header
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.grey,
+                  backgroundImage: post['profile_pic'] != null
+                      ? NetworkImage(post['profile_pic'])
+                      : null,
+                  child: post['profile_pic'] == null
+                      ? const Icon(Icons.person, color: Colors.white)
+                      : null,
+                ),
+                title: Text(
+                  post['username'] ?? 'unknown',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                trailing: const Icon(Icons.more_vert),
               ),
-            ),
 
-            // Actions
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: const [
-                  Icon(Icons.favorite_border),
-                  SizedBox(width: 16),
-                  Icon(Icons.chat_bubble_outline),
-                  SizedBox(width: 16),
-                  Icon(Icons.send_outlined),
-                  Spacer(),
-                  Icon(Icons.bookmark_border),
-                ],
-              ),
-            ),
-
-            // Likes
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                '1,234 likes',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            // Caption
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: RichText(
-                text: TextSpan(
-                  style: TextStyle(color: Colors.black),
-                  children: [
-                    TextSpan(
-                      text: 'username ',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+              // Post image
+              if (media.isNotEmpty)
+                Image.network(
+                  media[0]['media_url'],
+                  height: 300,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 300,
+                    color: Colors.grey.shade300,
+                    child: const Center(
+                      child: Icon(Icons.broken_image, size: 80, color: Colors.white),
                     ),
-                    TextSpan(text: 'This is a sample caption...'),
+                  ),
+                )
+              else
+                Container(
+                  height: 300,
+                  color: Colors.grey.shade300,
+                  child: const Center(
+                    child: Icon(Icons.image, size: 80, color: Colors.white),
+                  ),
+                ),
+
+              // Actions
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      color: isLiked ? Colors.red : Colors.black,
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.chat_bubble_outline),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.send_outlined),
+                    const Spacer(),
+                    const Icon(Icons.bookmark_border),
                   ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 12),
-          ],
-        );
-      },
+              // Likes
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  '${post['like_count']} likes',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+
+              // Caption
+              if (post['caption'] != null && post['caption'].toString().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(color: Colors.black),
+                      children: [
+                        TextSpan(
+                          text: '${post['username']} ',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(text: post['caption']),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 12),
+            ],
+          );
+        },
+      ),
     );
   }
 }
