@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
+import '../services/reel_service.dart';
 
 void main() {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -19,110 +21,65 @@ class ReelApp extends StatelessWidget {
   }
 }
 
-// ─── Data Model ─────────────────────────────────────────────────────────────
+// ─── Data Model ──────────────────────────────────────────────────────────────
 
 class ReelData {
-  final String id;
-  final Color bgColor;       // placeholder for video background
-  final Color accentColor;
-  final String username;
-  final String handle;
-  final String avatarInitial;
+  final int id;
   final String caption;
-  final String audioName;
-  final int likes;
-  final int comments;
-  final int shares;
-  final List<String> tags;
+  final String videoUrl;
+  final String createdAt;
+  final int userId;
+  final String username;
+  final String? profilePic;
+  final int likeCount;
+  final int commentCount;
+  final bool isLiked;
 
   const ReelData({
     required this.id,
-    required this.bgColor,
-    required this.accentColor,
-    required this.username,
-    required this.handle,
-    required this.avatarInitial,
     required this.caption,
-    required this.audioName,
-    required this.likes,
-    required this.comments,
-    required this.shares,
-    required this.tags,
+    required this.videoUrl,
+    required this.createdAt,
+    required this.userId,
+    required this.username,
+    this.profilePic,
+    required this.likeCount,
+    required this.commentCount,
+    required this.isLiked,
   });
-}
 
-final List<ReelData> _reels = [
-  ReelData(
-    id: '1',
-    bgColor: const Color(0xFF1A1033),
-    accentColor: const Color(0xFF9B59B6),
-    username: 'aurora.visuals',
-    handle: '@aurora.visuals',
-    avatarInitial: 'A',
-    caption: 'Northern lights are nature\'s best show ✨ Captured this in Iceland last winter 🌌',
-    audioName: 'Midnight Dreams – Alina Baraz',
-    likes: 142300,
-    comments: 2841,
-    shares: 9120,
-    tags: ['#aurora', '#iceland', '#northernlights', '#nature'],
-  ),
-  ReelData(
-    id: '2',
-    bgColor: const Color(0xFF0D2137),
-    accentColor: const Color(0xFF2196F3),
-    username: 'ocean.depths',
-    handle: '@ocean.depths',
-    avatarInitial: 'O',
-    caption: 'The deep blue has secrets you\'ve never imagined 🌊 Free diving at 30m',
-    audioName: 'Blue World – Hans Zimmer',
-    likes: 88900,
-    comments: 1203,
-    shares: 4700,
-    tags: ['#ocean', '#freediving', '#underwater', '#blue'],
-  ),
-  ReelData(
-    id: '3',
-    bgColor: const Color(0xFF1C0A00),
-    accentColor: const Color(0xFFFF6B35),
-    username: 'wildfire.studio',
-    handle: '@wildfire.studio',
-    avatarInitial: 'W',
-    caption: 'Slow-motion fire is pure art 🔥 Shot at 1000fps for maximum drama',
-    audioName: 'Fire – Barns Courtney',
-    likes: 312000,
-    comments: 5678,
-    shares: 22000,
-    tags: ['#fire', '#slowmo', '#cinematic', '#art'],
-  ),
-  ReelData(
-    id: '4',
-    bgColor: const Color(0xFF0A1F0A),
-    accentColor: const Color(0xFF4CAF50),
-    username: 'forest.whisper',
-    handle: '@forest.whisper',
-    avatarInitial: 'F',
-    caption: 'A misty morning in the Amazon 🌿 Where every breath feels like magic',
-    audioName: 'Into the Wild – LP',
-    likes: 67400,
-    comments: 890,
-    shares: 3300,
-    tags: ['#amazon', '#forest', '#nature', '#mist'],
-  ),
-  ReelData(
-    id: '5',
-    bgColor: const Color(0xFF1A0A1A),
-    accentColor: const Color(0xFFE91E99),
-    username: 'neon.city',
-    handle: '@neon.city',
-    avatarInitial: 'N',
-    caption: 'Tokyo at 3AM hits different 🌃 The city never really sleeps',
-    audioName: 'Synthwave Dreams – Kavinsky',
-    likes: 204500,
-    comments: 3412,
-    shares: 15600,
-    tags: ['#tokyo', '#neon', '#nightlife', '#japan'],
-  ),
-];
+  factory ReelData.fromJson(Map<String, dynamic> json) {
+    final user = json['user'] as Map<String, dynamic>;
+    return ReelData(
+      id: json['id'] as int,
+      caption: json['caption'] as String? ?? '',
+      videoUrl: json['video_url'] as String,
+      createdAt: json['created_at'] as String,
+      userId: user['id'] as int,
+      username: user['username'] as String,
+      profilePic: user['profile_pic'] as String?,
+      likeCount: json['like_count'] as int? ?? 0,
+      commentCount: json['comment_count'] as int? ?? 0,
+      isLiked: json['is_liked'] as bool? ?? false,
+    );
+  }
+
+  Color get accentColor {
+    const colors = [
+      Color(0xFF9B59B6),
+      Color(0xFF2196F3),
+      Color(0xFFFF6B35),
+      Color(0xFF4CAF50),
+      Color(0xFFE91E99),
+      Color(0xFFFFB300),
+      Color(0xFF00BCD4),
+    ];
+    return colors[userId % colors.length];
+  }
+
+  String get avatarInitial =>
+      username.isNotEmpty ? username[0].toUpperCase() : '?';
+}
 
 // ─── Feed Page ───────────────────────────────────────────────────────────────
 
@@ -136,7 +93,37 @@ class ReelFeedPage extends StatefulWidget {
 class _ReelFeedPageState extends State<ReelFeedPage> {
   final PageController _pageController = PageController();
   int _reelIndex = 0;
-  int _navIndex = 1; // index 1 = Reels tab in CustomBottomNavBar
+
+  List<ReelData> _reels = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchReels();
+  }
+
+  Future<void> _fetchReels() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final raw = await ReelService.getReels();
+      setState(() {
+        _reels = raw
+            .map((e) => ReelData.fromJson(e as Map<String, dynamic>))
+            .toList();
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -148,23 +135,56 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
+      // No bottom nav here — this page is embedded inside the parent navigator
       body: Stack(
         children: [
-          // ── Reel PageView ──
-          PageView.builder(
-            controller: _pageController,
-            scrollDirection: Axis.vertical,
-            itemCount: _reels.length,
-            onPageChanged: (i) => setState(() => _reelIndex = i),
-            itemBuilder: (context, index) {
-              return ReelCard(reel: _reels[index]);
-            },
-          ),
+          // ── Main content ──
+          if (_loading)
+            const Center(
+                child: CircularProgressIndicator(color: Colors.white))
+          else if (_error != null)
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: Colors.white54, size: 48),
+                  const SizedBox(height: 12),
+                  const Text('Could not load reels',
+                      style: TextStyle(color: Colors.white, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _fetchReels,
+                    child: const Text('Try again',
+                        style: TextStyle(color: Colors.white70)),
+                  ),
+                ],
+              ),
+            )
+          else if (_reels.isEmpty)
+              const Center(
+                child: Text('No reels yet',
+                    style: TextStyle(color: Colors.white54, fontSize: 16)),
+              )
+            else
+              PageView.builder(
+                controller: _pageController,
+                scrollDirection: Axis.vertical,
+                itemCount: _reels.length,
+                onPageChanged: (i) => setState(() => _reelIndex = i),
+                itemBuilder: (context, index) {
+                  return ReelCard(
+                    reel: _reels[index],
+                    isActive: index == _reelIndex,
+                  );
+                },
+              ),
 
           // ── Top bar ──
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -182,11 +202,8 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
                       color: Colors.black26,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
-                      Icons.camera_alt_outlined,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+                    child: const Icon(Icons.camera_alt_outlined,
+                        color: Colors.white, size: 26),
                   ),
                 ],
               ),
@@ -194,47 +211,30 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
           ),
 
           // ── Scroll indicator dots ──
-          Positioned(
-            right: 6,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(_reels.length, (i) {
-                  final active = i == _reelIndex;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(vertical: 3),
-                    width: 4,
-                    height: active ? 20 : 6,
-                    decoration: BoxDecoration(
-                      color: active ? Colors.white : Colors.white38,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  );
-                }),
+          if (_reels.isNotEmpty)
+            Positioned(
+              right: 6,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(_reels.length, (i) {
+                    final active = i == _reelIndex;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                      width: 4,
+                      height: active ? 20 : 6,
+                      decoration: BoxDecoration(
+                        color: active ? Colors.white : Colors.white38,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    );
+                  }),
+                ),
               ),
             ),
-          ),
-
-          // ── Bottom nav (CustomBottomNavBar) ──
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Theme(
-              // Force dark theme so onBackground is white over the video
-              data: ThemeData.dark().copyWith(
-                scaffoldBackgroundColor: Colors.transparent,
-                dividerColor: Colors.white,
-              ),
-              child: CustomBottomNavBar(
-                currentIndex: _navIndex,
-                onTap: (i) => setState(() => _navIndex = i),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -245,7 +245,9 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
 
 class ReelCard extends StatefulWidget {
   final ReelData reel;
-  const ReelCard({super.key, required this.reel});
+  final bool isActive;
+
+  const ReelCard({super.key, required this.reel, required this.isActive});
 
   @override
   State<ReelCard> createState() => _ReelCardState();
@@ -253,25 +255,42 @@ class ReelCard extends StatefulWidget {
 
 class _ReelCardState extends State<ReelCard>
     with SingleTickerProviderStateMixin {
-  bool _liked = false;
+  late bool _liked;
+  late int _likeCount;
   bool _saved = false;
   bool _showHeart = false;
+  bool _isPaused = false;
+
   late AnimationController _heartCtrl;
   late Animation<double> _heartAnim;
+
+  VideoPlayerController? _videoCtrl;
+  bool _videoReady = false;
 
   @override
   void initState() {
     super.initState();
+    _liked = widget.reel.isLiked;
+    _likeCount = widget.reel.likeCount;
+    _initVideo();
+    _initHeartAnim();
+  }
+
+  void _initHeartAnim() {
     _heartCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
     _heartAnim = Sequence([
       Tween<double>(begin: 0, end: 1.3).animate(
-        CurvedAnimation(parent: _heartCtrl, curve: const Interval(0, 0.4, curve: Curves.easeOut)),
+        CurvedAnimation(
+            parent: _heartCtrl,
+            curve: const Interval(0, 0.4, curve: Curves.easeOut)),
       ),
       Tween<double>(begin: 1.3, end: 0).animate(
-        CurvedAnimation(parent: _heartCtrl, curve: const Interval(0.6, 1, curve: Curves.easeIn)),
+        CurvedAnimation(
+            parent: _heartCtrl,
+            curve: const Interval(0.6, 1, curve: Curves.easeIn)),
       ),
     ]);
     _heartCtrl.addStatusListener((s) {
@@ -281,18 +300,60 @@ class _ReelCardState extends State<ReelCard>
     });
   }
 
+  Future<void> _initVideo() async {
+    final ctrl = VideoPlayerController.networkUrl(
+      Uri.parse(widget.reel.videoUrl),
+    );
+    _videoCtrl = ctrl;
+    await ctrl.initialize();
+    ctrl.setLooping(true);
+    if (mounted) {
+      setState(() => _videoReady = true);
+      if (widget.isActive) ctrl.play();
+    }
+  }
+
+  @override
+  void didUpdateWidget(ReelCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!mounted || _videoCtrl == null || !_videoReady) return;
+
+    if (widget.isActive && !_isPaused) {
+      _videoCtrl!.play();
+    } else {
+      _videoCtrl!.pause();
+    }
+  }
+
   @override
   void dispose() {
     _heartCtrl.dispose();
+    _videoCtrl?.dispose();
     super.dispose();
   }
 
   void _onDoubleTap() {
-    setState(() {
-      _liked = true;
-      _showHeart = true;
-    });
+    if (!_liked) {
+      setState(() {
+        _liked = true;
+        _likeCount++;
+      });
+    }
+    setState(() => _showHeart = true);
     _heartCtrl.forward(from: 0);
+  }
+
+  void _onTap() {
+    if (_videoCtrl == null || !_videoReady) return;
+    setState(() => _isPaused = !_isPaused);
+    _isPaused ? _videoCtrl!.pause() : _videoCtrl!.play();
+  }
+
+  void _toggleLike() {
+    setState(() {
+      _liked = !_liked;
+      _likeCount += _liked ? 1 : -1;
+    });
   }
 
   String _fmtNum(int n) {
@@ -307,6 +368,7 @@ class _ReelCardState extends State<ReelCard>
     final size = MediaQuery.of(context).size;
 
     return GestureDetector(
+      onTap: _onTap,
       onDoubleTap: _onDoubleTap,
       child: SizedBox(
         width: size.width,
@@ -314,8 +376,24 @@ class _ReelCardState extends State<ReelCard>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ── Video placeholder (gradient) ──
-            _VideoPlaceholder(reel: reel),
+            // ── Video or placeholder ──
+            _videoReady && _videoCtrl != null
+                ? FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _videoCtrl!.value.size.width,
+                height: _videoCtrl!.value.size.height,
+                child: VideoPlayer(_videoCtrl!),
+              ),
+            )
+                : _FallbackBackground(reel: reel),
+
+            // ── Pause icon ──
+            if (_isPaused)
+              const Center(
+                child: Icon(Icons.pause_circle_filled,
+                    color: Colors.white54, size: 72),
+              ),
 
             // ── Double-tap heart burst ──
             if (_showHeart)
@@ -324,11 +402,8 @@ class _ReelCardState extends State<ReelCard>
                   animation: _heartAnim,
                   builder: (_, __) => Transform.scale(
                     scale: _heartAnim.value,
-                    child: const Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 100,
-                    ),
+                    child: const Icon(Icons.favorite,
+                        color: Colors.white, size: 100),
                   ),
                 ),
               ),
@@ -358,23 +433,22 @@ class _ReelCardState extends State<ReelCard>
               child: Column(
                 children: [
                   _ActionButton(
-                    icon: _liked
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    color: _liked ? const Color(0xFFFF3040) : Colors.white,
-                    label: _fmtNum(reel.likes + (_liked ? 1 : 0)),
-                    onTap: () => setState(() => _liked = !_liked),
+                    icon: _liked ? Icons.favorite : Icons.favorite_border,
+                    color:
+                    _liked ? const Color(0xFFFF3040) : Colors.white,
+                    label: _fmtNum(_likeCount),
+                    onTap: _toggleLike,
                   ),
                   const SizedBox(height: 20),
                   _ActionButton(
                     icon: Icons.mode_comment_outlined,
-                    label: _fmtNum(reel.comments),
+                    label: _fmtNum(reel.commentCount),
                     onTap: () {},
                   ),
                   const SizedBox(height: 20),
                   _ActionButton(
                     icon: Icons.send_outlined,
-                    label: _fmtNum(reel.shares),
+                    label: 'Share',
                     onTap: () {},
                   ),
                   const SizedBox(height: 20),
@@ -387,8 +461,9 @@ class _ReelCardState extends State<ReelCard>
                     onTap: () => setState(() => _saved = !_saved),
                   ),
                   const SizedBox(height: 20),
-                  // Rotating vinyl disc
-                  _SpinningDisc(color: reel.accentColor, initial: reel.avatarInitial),
+                  _SpinningDisc(
+                      color: reel.accentColor,
+                      initial: reel.avatarInitial),
                 ],
               ),
             ),
@@ -402,38 +477,20 @@ class _ReelCardState extends State<ReelCard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // User row
                   Row(
                     children: [
-                      // Avatar
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [reel.accentColor, reel.accentColor.withOpacity(0.4)],
-                          ),
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                        alignment: Alignment.center,
+                      _Avatar(reel: reel),
+                      const SizedBox(width: 10),
+                      Flexible(
                         child: Text(
-                          reel.avatarInitial,
+                          reel.username,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            letterSpacing: 0.2,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        reel.username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          letterSpacing: 0.2,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -441,38 +498,18 @@ class _ReelCardState extends State<ReelCard>
                     ],
                   ),
                   const SizedBox(height: 10),
-
-                  // Caption
-                  Text(
-                    reel.caption,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13.5,
-                      height: 1.4,
+                  if (reel.caption.isNotEmpty)
+                    Text(
+                      reel.caption,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          height: 1.4),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Tags
-                  Wrap(
-                    spacing: 6,
-                    children: reel.tags
-                        .map((t) => Text(
-                      t,
-                      style: TextStyle(
-                        color: reel.accentColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ))
-                        .toList(),
-                  ),
                   const SizedBox(height: 10),
-
-                  // Audio ticker
-                  _AudioTicker(audioName: reel.audioName),
+                  _AudioTicker(audioName: "${reel.username}'s audio"),
                 ],
               ),
             ),
@@ -483,11 +520,11 @@ class _ReelCardState extends State<ReelCard>
   }
 }
 
-// ─── Video Placeholder ───────────────────────────────────────────────────────
+// ─── Fallback background while video loads ───────────────────────────────────
 
-class _VideoPlaceholder extends StatelessWidget {
+class _FallbackBackground extends StatelessWidget {
   final ReelData reel;
-  const _VideoPlaceholder({required this.reel});
+  const _FallbackBackground({required this.reel});
 
   @override
   Widget build(BuildContext context) {
@@ -498,33 +535,66 @@ class _VideoPlaceholder extends StatelessWidget {
           radius: 1.2,
           colors: [
             reel.accentColor.withOpacity(0.6),
-            reel.bgColor,
+            reel.accentColor.withOpacity(0.15),
             Colors.black,
           ],
         ),
       ),
-      child: CustomPaint(painter: _GridPainter()),
+      child: const Center(
+        child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2),
+      ),
     );
   }
 }
 
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
-      ..strokeWidth = 0.8;
+// ─── Avatar ──────────────────────────────────────────────────────────────────
 
-    for (double x = 0; x < size.width; x += 40) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += 40) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
+class _Avatar extends StatelessWidget {
+  final ReelData reel;
+  const _Avatar({required this.reel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [reel.accentColor, reel.accentColor.withOpacity(0.4)],
+        ),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: ClipOval(
+        child: reel.profilePic != null
+            ? Image.network(
+          reel.profilePic!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              _InitialFallback(reel: reel),
+        )
+            : _InitialFallback(reel: reel),
+      ),
+    );
   }
+}
+
+class _InitialFallback extends StatelessWidget {
+  final ReelData reel;
+  const _InitialFallback({required this.reel});
 
   @override
-  bool shouldRepaint(_) => false;
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        reel.avatarInitial,
+        style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16),
+      ),
+    );
+  }
 }
 
 // ─── Action Button ───────────────────────────────────────────────────────────
@@ -551,14 +621,11 @@ class _ActionButton extends StatelessWidget {
           Icon(icon, color: color, size: 30),
           if (label.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
           ],
         ],
       ),
@@ -584,10 +651,9 @@ class _SpinningDiscState extends State<_SpinningDisc>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
+    _ctrl =
+    AnimationController(vsync: this, duration: const Duration(seconds: 4))
+      ..repeat();
   }
 
   @override
@@ -620,14 +686,10 @@ class _SpinningDiscState extends State<_SpinningDisc>
           width: 12,
           height: 12,
           decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.black,
-          ),
+              shape: BoxShape.circle, color: Colors.black),
           alignment: Alignment.center,
-          child: Text(
-            widget.initial,
-            style: const TextStyle(fontSize: 6, color: Colors.white),
-          ),
+          child: Text(widget.initial,
+              style: const TextStyle(fontSize: 6, color: Colors.white)),
         ),
       ),
     );
@@ -694,9 +756,8 @@ class _AudioTickerState extends State<_AudioTicker>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat();
+        vsync: this, duration: const Duration(seconds: 6))
+      ..repeat();
     _anim = Tween<double>(begin: 0, end: 1).animate(_ctrl);
   }
 
@@ -709,139 +770,17 @@ class _AudioTickerState extends State<_AudioTicker>
   @override
   Widget build(BuildContext context) {
     final text = '♪  ${widget.audioName}   •   ${widget.audioName}   •   ';
-
     return ClipRect(
       child: SizedBox(
         height: 20,
         child: AnimatedBuilder(
           animation: _anim,
-          builder: (_, __) {
-            return FractionalTranslation(
-              translation: Offset(-_anim.value, 0),
-              child: Text(
-                text + text,
+          builder: (_, __) => FractionalTranslation(
+            translation: Offset(-_anim.value, 0),
+            child: Text(text + text,
                 maxLines: 1,
                 style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12.5,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Custom Bottom Nav Bar ───────────────────────────────────────────────────
-
-class CustomBottomNavBar extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int> onTap;
-
-  const CustomBottomNavBar({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      height: 58,
-      decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        border: Border(
-          top: BorderSide(
-            color: theme.dividerColor.withOpacity(0.6),
-            width: 0.6,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _navItem(
-            context,
-            index: 0,
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home,
-          ),
-          _navItem(
-            context,
-            index: 1,
-            icon: Icons.video_library_outlined,
-            activeIcon: Icons.video_library,
-          ),
-          _navItem(
-            context,
-            index: 2,
-            icon: Icons.chat_bubble_outline,
-            activeIcon: Icons.chat_bubble,
-          ),
-          _navItem(
-            context,
-            index: 3,
-            icon: Icons.search_outlined,
-            activeIcon: Icons.search,
-          ),
-          _profileItem(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _navItem(
-      BuildContext context, {
-        required int index,
-        required IconData icon,
-        required IconData activeIcon,
-      }) {
-    final isActive = currentIndex == index;
-
-    return GestureDetector(
-      onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 180),
-        scale: isActive ? 1.15 : 1.0,
-        child: Icon(
-          isActive ? activeIcon : icon,
-          size: 26,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
-    );
-  }
-
-  Widget _profileItem(BuildContext context) {
-    final isActive = currentIndex == 4;
-
-    return GestureDetector(
-      onTap: () => onTap(4),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: isActive
-              ? Border.all(
-            color: Theme.of(context).colorScheme.onSurface,
-            width: 1.6,
-          )
-              : null,
-        ),
-        // Falls back gracefully when the asset isn't present
-        child: CircleAvatar(
-          radius: 12,
-          backgroundColor: Colors.white24,
-          child: Icon(
-            Icons.person,
-            size: 14,
-            color: Theme.of(context).colorScheme.onSurface,
+                    color: Colors.white70, fontSize: 12.5)),
           ),
         ),
       ),
@@ -849,7 +788,7 @@ class CustomBottomNavBar extends StatelessWidget {
   }
 }
 
-// ─── Animation helper: sequence two animations ───────────────────────────────
+// ─── Animation helper ────────────────────────────────────────────────────────
 
 class Sequence<T> extends Animation<T> with AnimationWithParentMixin<T> {
   final List<Animation<T>> _children;
