@@ -102,5 +102,15 @@ class ProfileApi {
       body: jsonEncode({'is_private': isPrivate ? 1 : 0}),
     );
   }
+
+  static Future<http.Response> checkPrivacy(String token) {
+    return http.get(
+      Uri.parse('$_baseUrl/check-privacy'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
 
