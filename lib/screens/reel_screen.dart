@@ -378,7 +378,9 @@ class _ReelCardState extends State<ReelCard>
             _videoReady && _videoCtrl != null
                 ? Positioned.fill(
               child: FittedBox(
-                fit: BoxFit.cover,
+                fit: _videoCtrl!.value.aspectRatio > 1
+                    ? BoxFit.contain
+                    : BoxFit.cover,
                 child: SizedBox(
                   width: _videoCtrl!.value.size.width,
                   height: _videoCtrl!.value.size.height,
