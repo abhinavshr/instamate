@@ -1,25 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import '../services/reel_service.dart';
-
-void main() {
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  runApp(const ReelApp());
-}
-
-class ReelApp extends StatelessWidget {
-  const ReelApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      home: const ReelFeedPage(),
-    );
-  }
-}
 
 // ─── Data Model ──────────────────────────────────────────────────────────────
 
@@ -174,6 +155,7 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
                 onPageChanged: (i) => setState(() => _reelIndex = i),
                 itemBuilder: (context, index) {
                   return ReelCard(
+                    key: ValueKey(_reels[index].id),
                     reel: _reels[index],
                     isActive: index == _reelIndex,
                   );
@@ -266,6 +248,7 @@ class _ReelCardState extends State<ReelCard>
 
   VideoPlayerController? _videoCtrl;
   bool _videoReady = false;
+  bool _videoError = false;
 
   @override
   void initState() {
@@ -300,16 +283,31 @@ class _ReelCardState extends State<ReelCard>
     });
   }
 
+  /// Converts a Cloudinary video URL to mp4 so video_player (ExoPlayer on
+  /// Android) can decode it reliably. Raw .mov uploads from iPhones are often
+  /// HEVC-encoded, which ExoPlayer can't play.
+  String _playableUrl(String url) {
+    if (url.toLowerCase().endsWith('.mov')) {
+      return '${url.substring(0, url.length - 4)}.mp4';
+    }
+    return url;
+  }
+
   Future<void> _initVideo() async {
     final ctrl = VideoPlayerController.networkUrl(
-      Uri.parse(widget.reel.videoUrl),
+      Uri.parse(_playableUrl(widget.reel.videoUrl)),
     );
     _videoCtrl = ctrl;
-    await ctrl.initialize();
-    ctrl.setLooping(true);
-    if (mounted) {
-      setState(() => _videoReady = true);
-      if (widget.isActive) ctrl.play();
+    try {
+      await ctrl.initialize().timeout(const Duration(seconds: 15));
+      ctrl.setLooping(true);
+      if (mounted) {
+        setState(() => _videoReady = true);
+        if (widget.isActive) ctrl.play();
+      }
+    } catch (e) {
+      debugPrint('Video init error for ${widget.reel.videoUrl}: $e');
+      if (mounted) setState(() => _videoError = true);
     }
   }
 
@@ -376,17 +374,21 @@ class _ReelCardState extends State<ReelCard>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ── Video or placeholder ──
+            // ── Video, error state, or placeholder ──
             _videoReady && _videoCtrl != null
-                ? FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _videoCtrl!.value.size.width,
-                height: _videoCtrl!.value.size.height,
-                child: VideoPlayer(_videoCtrl!),
+                ? Positioned.fill(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _videoCtrl!.value.size.width,
+                  height: _videoCtrl!.value.size.height,
+                  child: VideoPlayer(_videoCtrl!),
+                ),
               ),
             )
-                : _FallbackBackground(reel: reel),
+                : _videoError
+                ? Positioned.fill(child: _VideoErrorBackground(reel: reel))
+                : Positioned.fill(child: _FallbackBackground(reel: reel)),
 
             // ── Pause icon ──
             if (_isPaused)
@@ -429,7 +431,7 @@ class _ReelCardState extends State<ReelCard>
             // ── Right-side action buttons ──
             Positioned(
               right: 10,
-              bottom: 100,
+              bottom: 50,
               child: Column(
                 children: [
                   _ActionButton(
@@ -472,7 +474,7 @@ class _ReelCardState extends State<ReelCard>
             Positioned(
               left: 14,
               right: 70,
-              bottom: 90,
+              bottom: 24,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -542,6 +544,41 @@ class _FallbackBackground extends StatelessWidget {
       ),
       child: const Center(
         child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2),
+      ),
+    );
+  }
+}
+
+// ─── Error background when video fails to load ───────────────────────────────
+
+class _VideoErrorBackground extends StatelessWidget {
+  final ReelData reel;
+  const _VideoErrorBackground({required this.reel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(-0.3, -0.4),
+          radius: 1.2,
+          colors: [
+            reel.accentColor.withOpacity(0.6),
+            reel.accentColor.withOpacity(0.15),
+            Colors.black,
+          ],
+        ),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, color: Colors.white54, size: 48),
+            SizedBox(height: 8),
+            Text('Video unavailable',
+                style: TextStyle(color: Colors.white54, fontSize: 13)),
+          ],
+        ),
       ),
     );
   }
