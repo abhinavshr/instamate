@@ -151,4 +151,21 @@ class ProfileService {
 
     throw Exception(data['message'] ?? 'Failed to update privacy setting');
   }
+
+  static Future<Map<String, dynamic>?> checkPrivacy() async {
+    final token = await AuthService.getToken();
+    if (token == null) throw Exception('User not authenticated');
+
+    final response = await ProfileApi.checkPrivacy(token);
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return {
+        'is_private': data['is_private'],
+        'status': data['status'],
+      };
+    }
+
+    throw Exception(data['message'] ?? 'Failed to fetch privacy status');
+  }
 }

@@ -54,11 +54,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadPrivacyStatus() async {
     try {
-      final profile = await ProfileService.getProfile();
-      if (profile != null && mounted) {
+      final privacy = await ProfileService.checkPrivacy();
+      if (privacy != null && mounted) {
         setState(() {
-          // Adjust the key/casting below to match your backend's field
-          final isPrivate = profile['is_private'];
+          final isPrivate = privacy['is_private'];
           _privateAccount = isPrivate == true || isPrivate == 1;
           _isLoadingPrivacy = false;
           _buildAllItems();
