@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:instamate/screens/profile_screen.dart';
-import 'package:instamate/widget/custom_bottom_navbar.dart';
+import 'package:instamate/screens/reel_screen.dart';
 import 'home_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -21,7 +21,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     _pages = const [
       HomeScreen(),
-      _PageText(title: 'Reels'),
+      ReelFeedPage(),
       _PageText(title: 'Message'),
       _PageText(title: 'Search'),
       ProfileScreen()
