@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:instamate/screens/profile_screen.dart';
 import 'package:instamate/screens/reel_screen.dart';
+import 'package:instamate/widget/custom_bottom_navbar.dart';
 import 'home_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
