@@ -116,7 +116,6 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      // No bottom nav here — this page is embedded inside the parent navigator
       body: Stack(
         children: [
           // ── Main content ──
@@ -242,6 +241,7 @@ class _ReelCardState extends State<ReelCard>
   bool _saved = false;
   bool _showHeart = false;
   bool _isPaused = false;
+  bool _likeLoading = false; // prevents double-tap spam
 
   late AnimationController _heartCtrl;
   late Animation<double> _heartAnim;
@@ -283,9 +283,6 @@ class _ReelCardState extends State<ReelCard>
     });
   }
 
-  /// Converts a Cloudinary video URL to mp4 so video_player (ExoPlayer on
-  /// Android) can decode it reliably. Raw .mov uploads from iPhones are often
-  /// HEVC-encoded, which ExoPlayer can't play.
   String _playableUrl(String url) {
     if (url.toLowerCase().endsWith('.mov')) {
       return '${url.substring(0, url.length - 4)}.mp4';
@@ -330,12 +327,44 @@ class _ReelCardState extends State<ReelCard>
     super.dispose();
   }
 
+  // ── Like helpers ──────────────────────────────────────────────────────────
+
+  Future<void> _toggleLike() async {
+    if (_likeLoading) return;
+
+    // Optimistic update
+    setState(() {
+      _liked = !_liked;
+      _likeCount += _liked ? 1 : -1;
+      _likeLoading = true;
+    });
+
+    try {
+      await ReelService.toggleReelLike(widget.reel.id.toString());
+    } catch (e) {
+      // Revert on failure
+      if (mounted) {
+        setState(() {
+          _liked = !_liked;
+          _likeCount += _liked ? 1 : -1;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update like. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _likeLoading = false);
+    }
+  }
+
   void _onDoubleTap() {
+    // Only like, never unlike, on double-tap
     if (!_liked) {
-      setState(() {
-        _liked = true;
-        _likeCount++;
-      });
+      _toggleLike();
     }
     setState(() => _showHeart = true);
     _heartCtrl.forward(from: 0);
@@ -345,13 +374,6 @@ class _ReelCardState extends State<ReelCard>
     if (_videoCtrl == null || !_videoReady) return;
     setState(() => _isPaused = !_isPaused);
     _isPaused ? _videoCtrl!.pause() : _videoCtrl!.play();
-  }
-
-  void _toggleLike() {
-    setState(() {
-      _liked = !_liked;
-      _likeCount += _liked ? 1 : -1;
-    });
   }
 
   String _fmtNum(int n) {
@@ -389,8 +411,10 @@ class _ReelCardState extends State<ReelCard>
               ),
             )
                 : _videoError
-                ? Positioned.fill(child: _VideoErrorBackground(reel: reel))
-                : Positioned.fill(child: _FallbackBackground(reel: reel)),
+                ? Positioned.fill(
+                child: _VideoErrorBackground(reel: reel))
+                : Positioned.fill(
+                child: _FallbackBackground(reel: reel)),
 
             // ── Pause icon ──
             if (_isPaused)
@@ -438,10 +462,10 @@ class _ReelCardState extends State<ReelCard>
                 children: [
                   _ActionButton(
                     icon: _liked ? Icons.favorite : Icons.favorite_border,
-                    color:
-                    _liked ? const Color(0xFFFF3040) : Colors.white,
+                    color: _liked ? const Color(0xFFFF3040) : Colors.white,
                     label: _fmtNum(_likeCount),
                     onTap: _toggleLike,
+                    loading: _likeLoading,
                   ),
                   const SizedBox(height: 20),
                   _ActionButton(
@@ -457,9 +481,7 @@ class _ReelCardState extends State<ReelCard>
                   ),
                   const SizedBox(height: 20),
                   _ActionButton(
-                    icon: _saved
-                        ? Icons.bookmark
-                        : Icons.bookmark_border,
+                    icon: _saved ? Icons.bookmark : Icons.bookmark_border,
                     color: _saved ? reel.accentColor : Colors.white,
                     label: '',
                     onTap: () => setState(() => _saved = !_saved),
@@ -506,9 +528,7 @@ class _ReelCardState extends State<ReelCard>
                     Text(
                       reel.caption,
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.5,
-                          height: 1.4),
+                          color: Colors.white, fontSize: 13.5, height: 1.4),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -545,7 +565,8 @@ class _FallbackBackground extends StatelessWidget {
         ),
       ),
       child: const Center(
-        child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2),
+        child:
+        CircularProgressIndicator(color: Colors.white38, strokeWidth: 2),
       ),
     );
   }
@@ -628,9 +649,7 @@ class _InitialFallback extends StatelessWidget {
       child: Text(
         reel.avatarInitial,
         style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16),
+            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
       ),
     );
   }
@@ -643,12 +662,14 @@ class _ActionButton extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final bool loading;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     this.color = Colors.white,
     required this.onTap,
+    this.loading = false,
   });
 
   @override
@@ -657,7 +678,14 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          Icon(icon, color: color, size: 30),
+          loading
+              ? const SizedBox(
+            width: 30,
+            height: 30,
+            child: CircularProgressIndicator(
+                color: Colors.white, strokeWidth: 2),
+          )
+              : Icon(icon, color: color, size: 30),
           if (label.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(label,
@@ -794,8 +822,8 @@ class _AudioTickerState extends State<_AudioTicker>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 6))
+    _ctrl =
+    AnimationController(vsync: this, duration: const Duration(seconds: 6))
       ..repeat();
     _anim = Tween<double>(begin: 0, end: 1).animate(_ctrl);
   }
@@ -818,8 +846,8 @@ class _AudioTickerState extends State<_AudioTicker>
             translation: Offset(-_anim.value, 0),
             child: Text(text + text,
                 maxLines: 1,
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 12.5)),
+                style:
+                const TextStyle(color: Colors.white70, fontSize: 12.5)),
           ),
         ),
       ),

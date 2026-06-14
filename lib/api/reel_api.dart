@@ -12,4 +12,14 @@ class ReelApi {
       },
     );
   }
+
+  static Future<http.Response> toggleReelLike(String token, String reelId) {
+    return http.post(
+      Uri.parse('$_baseUrl/$reelId/like'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
