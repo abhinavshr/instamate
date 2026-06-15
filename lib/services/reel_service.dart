@@ -59,4 +59,22 @@ class ReelService {
       rethrow;
     }
   }
+
+  static Future<List<Map<String, dynamic>>> getReelComments(String reelId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await ReelApi.getReelComments(token, reelId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(data['comments']);
+      }
+
+      throw Exception(data['message'] ?? 'Failed to fetch comments');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
