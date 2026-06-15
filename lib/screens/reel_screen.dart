@@ -241,7 +241,11 @@ class _ReelCardState extends State<ReelCard>
   bool _saved = false;
   bool _showHeart = false;
   bool _isPaused = false;
-  bool _likeLoading = false; // prevents double-tap spam
+  bool _likeLoading = false;
+
+  // ── Like status fetch state ──
+  bool _likeStatusLoading = false;
+  bool _likeStatusError = false;
 
   late AnimationController _heartCtrl;
   late Animation<double> _heartAnim;
@@ -253,11 +257,49 @@ class _ReelCardState extends State<ReelCard>
   @override
   void initState() {
     super.initState();
+    // Seed from feed data immediately (no flicker)
     _liked = widget.reel.isLiked;
     _likeCount = widget.reel.likeCount;
+
     _initVideo();
     _initHeartAnim();
+
+    // Verify real like status from server in background
+    _fetchLikeStatus();
   }
+
+  // ── Fetch real like status from server ───────────────────────────────────
+
+  Future<void> _fetchLikeStatus() async {
+    setState(() {
+      _likeStatusLoading = true;
+      _likeStatusError = false;
+    });
+
+    try {
+      final status =
+      await ReelService.getReelLikeStatus(widget.reel.id.toString());
+
+      if (mounted) {
+        setState(() {
+          _liked = status['is_liked'] as bool;
+          _likeCount = status['like_count'] as int;
+          _likeStatusLoading = false;
+        });
+      }
+    } catch (e) {
+      // On error, keep feed data as fallback — don't break the UI
+      if (mounted) {
+        setState(() {
+          _likeStatusLoading = false;
+          _likeStatusError = true;
+        });
+        debugPrint('getReelLikeStatus error for reel ${widget.reel.id}: $e');
+      }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   void _initHeartAnim() {
     _heartCtrl = AnimationController(
@@ -330,7 +372,8 @@ class _ReelCardState extends State<ReelCard>
   // ── Like helpers ──────────────────────────────────────────────────────────
 
   Future<void> _toggleLike() async {
-    if (_likeLoading) return;
+    // Block if like status is still loading or another toggle is in progress
+    if (_likeLoading || _likeStatusLoading) return;
 
     // Optimistic update
     setState(() {
@@ -363,9 +406,7 @@ class _ReelCardState extends State<ReelCard>
 
   void _onDoubleTap() {
     // Only like, never unlike, on double-tap
-    if (!_liked) {
-      _toggleLike();
-    }
+    if (!_liked) _toggleLike();
     setState(() => _showHeart = true);
     _heartCtrl.forward(from: 0);
   }
@@ -380,6 +421,43 @@ class _ReelCardState extends State<ReelCard>
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return '$n';
+  }
+
+  // ── Like button widget — shows spinner while status is loading ────────────
+
+  Widget _buildLikeButton() {
+    // While fetching real status, show a small spinner instead of the icon
+    if (_likeStatusLoading) {
+      return const Column(
+        children: [
+          SizedBox(
+            width: 30,
+            height: 30,
+            child: CircularProgressIndicator(
+              color: Colors.white54,
+              strokeWidth: 2,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            '...',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return _ActionButton(
+      icon: _liked ? Icons.favorite : Icons.favorite_border,
+      color: _liked ? const Color(0xFFFF3040) : Colors.white,
+      label: _fmtNum(_likeCount),
+      onTap: _toggleLike,
+      loading: _likeLoading,
+    );
   }
 
   @override
@@ -460,12 +538,12 @@ class _ReelCardState extends State<ReelCard>
               bottom: 50,
               child: Column(
                 children: [
-                  _ActionButton(
-                    icon: _liked ? Icons.favorite : Icons.favorite_border,
-                    color: _liked ? const Color(0xFFFF3040) : Colors.white,
-                    label: _fmtNum(_likeCount),
-                    onTap: _toggleLike,
-                    loading: _likeLoading,
+                  // Like button — uses dedicated builder for loading state
+                  GestureDetector(
+                    onTap: (_likeLoading || _likeStatusLoading)
+                        ? null
+                        : _toggleLike,
+                    child: _buildLikeButton(),
                   ),
                   const SizedBox(height: 20),
                   _ActionButton(
@@ -488,8 +566,7 @@ class _ReelCardState extends State<ReelCard>
                   ),
                   const SizedBox(height: 20),
                   _SpinningDisc(
-                      color: reel.accentColor,
-                      initial: reel.avatarInitial),
+                      color: reel.accentColor, initial: reel.avatarInitial),
                 ],
               ),
             ),

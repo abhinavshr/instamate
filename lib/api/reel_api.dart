@@ -22,4 +22,14 @@ class ReelApi {
       },
     );
   }
+
+  static Future<http.Response> getReelLikeStatus(String token, String reelId) {
+    return http.get(
+      Uri.parse('$_baseUrl/$reelId/like-status'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }

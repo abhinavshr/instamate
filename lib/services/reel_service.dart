@@ -38,4 +38,25 @@ class ReelService {
       rethrow;
     }
   }
+
+  static Future<Map<String, dynamic>> getReelLikeStatus(String reelId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await ReelApi.getReelLikeStatus(token, reelId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'is_liked': data['is_liked'],
+          'like_count': data['like_count'],
+        };
+      }
+
+      throw Exception(data['message'] ?? 'Failed to fetch like status');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
