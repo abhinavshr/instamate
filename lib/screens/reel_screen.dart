@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:instamate/widget/reels/reel_comments_sheet.dart';
 import 'package:video_player/video_player.dart';
 import '../services/reel_service.dart';
 
@@ -549,7 +550,7 @@ class _ReelCardState extends State<ReelCard>
                   _ActionButton(
                     icon: Icons.mode_comment_outlined,
                     label: _fmtNum(reel.commentCount),
-                    onTap: () {},
+                    onTap: () => showCommentsSheet(context, reel.id, reel.commentCount),
                   ),
                   const SizedBox(height: 20),
                   _ActionButton(
