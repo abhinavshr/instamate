@@ -110,6 +110,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   bool _loading = true;
   String? _error;
   bool _posting = false;
+  CommentData? _replyingTo;
 
   @override
   void initState() {
@@ -330,7 +331,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       controller: _scrollCtrl,
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: _comments.length,
-      itemBuilder: (_, i) => _CommentTile(comment: _comments[i]),
+      itemBuilder: (_, i) => _CommentTile(
+        comment: _comments[i],
+        onReplyTap: (parent) {
+          setState(() => _replyingTo = parent);
+          _focusNode.requestFocus();
+        },
+      ),
     );
   }
 
@@ -339,81 +346,115 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white12,
-                border: Border.all(color: Colors.white24, width: 1),
-              ),
-              child: const Icon(Icons.person,
-                  color: Colors.white38, size: 18),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2C2C2C),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: TextField(
-                  controller: _inputCtrl,
-                  focusNode: _focusNode,
-                  style:
-                  const TextStyle(color: Colors.white, fontSize: 14),
-                  maxLines: null,
-                  cursorColor: Colors.white,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _submitComment(),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    hintText: 'Add a comment…',
-                    hintStyle:
-                    TextStyle(color: Colors.white38, fontSize: 14),
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _inputCtrl,
-              builder: (_, val, __) {
-                final hasText = val.text.trim().isNotEmpty;
-                if (_posting) {
-                  return const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF3897F0),
-                      strokeWidth: 2,
+            if (_replyingTo != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 4),
+                child: Row(
+                  children: [
+                    Text(
+                      'Replying to ${_replyingTo!.username}',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
                     ),
-                  );
-                }
-                return GestureDetector(
-                  onTap: hasText ? _submitComment : null,
-                  child: AnimatedOpacity(
-                    opacity: hasText ? 1.0 : 0.35,
-                    duration: const Duration(milliseconds: 150),
-                    child: const Text(
-                      'Post',
-                      style: TextStyle(
-                        color: Color(0xFF3897F0),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => setState(() => _replyingTo = null),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white38,
+                        size: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white12,
+                    border: Border.all(color: Colors.white24, width: 1),
+                  ),
+                  child: const Icon(Icons.person,
+                      color: Colors.white38, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2C2C2C),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: TextField(
+                      controller: _inputCtrl,
+                      focusNode: _focusNode,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      maxLines: null,
+                      cursorColor: Colors.white,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _submitComment(),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        hintText: _replyingTo != null
+                            ? 'Reply to ${_replyingTo!.username}…'
+                            : 'Add a comment…',
+                        hintStyle: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 14,
+                        ),
+                        isDense: true,
+                        contentPadding:
+                        const EdgeInsets.symmetric(vertical: 10),
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _inputCtrl,
+                  builder: (_, val, __) {
+                    final hasText = val.text.trim().isNotEmpty;
+                    if (_posting) {
+                      return const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF3897F0),
+                          strokeWidth: 2,
+                        ),
+                      );
+                    }
+                    return GestureDetector(
+                      onTap: hasText ? _submitComment : null,
+                      child: AnimatedOpacity(
+                        opacity: hasText ? 1.0 : 0.35,
+                        duration: const Duration(milliseconds: 150),
+                        child: const Text(
+                          'Post',
+                          style: TextStyle(
+                            color: Color(0xFF3897F0),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -425,38 +466,37 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty || _posting) return;
 
+    final replyingTo = _replyingTo;
+
     _inputCtrl.clear();
     _focusNode.unfocus();
 
-    setState(() => _posting = true);
+    setState(() {
+      _posting = true;
+      _replyingTo = null;
+    });
 
     try {
-      final result =
-      await ReelService.postReelComment(widget.reelId.toString(), text);
-
-      // Try to parse the new comment from the response, fall back to refetch
-      final newCommentJson = result['comment'] as Map<String, dynamic>?;
+      if (replyingTo == null) {
+        await ReelService.postReelComment(widget.reelId.toString(), text);
+      } else {
+        await ReelService.postReelCommentReply(
+          widget.reelId.toString(),
+          replyingTo.id.toString(),
+          text,
+        );
+      }
 
       if (mounted) {
-        setState(() {
-          if (newCommentJson != null) {
-            _comments.insert(0, CommentData.fromJson(newCommentJson));
-          }
-          _posting = false;
-        });
+        await _fetchComments();
+        setState(() => _posting = false);
 
-        // If the API didn't return the created comment, just refresh the list
-        if (newCommentJson == null) {
-          _fetchComments();
-        } else {
-          // Scroll to top so the new comment is visible
-          if (_scrollCtrl.hasClients) {
-            _scrollCtrl.animateTo(
-              0,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-            );
-          }
+        if (replyingTo == null && _scrollCtrl.hasClients) {
+          _scrollCtrl.animateTo(
+            0,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
         }
       }
     } catch (e) {
@@ -480,8 +520,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 class _CommentTile extends StatefulWidget {
   final CommentData comment;
   final bool isReply;
+  final void Function(CommentData parent)? onReplyTap;
 
-  const _CommentTile({required this.comment, this.isReply = false});
+  const _CommentTile({required this.comment, this.isReply = false, this.onReplyTap,});
 
   @override
   State<_CommentTile> createState() => _CommentTileState();
@@ -547,7 +588,7 @@ class _CommentTileState extends State<_CommentTile> {
                 ),
                 const SizedBox(height: 6),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () => widget.onReplyTap?.call(c),
                   child: const Text(
                     'Reply',
                     style: TextStyle(
@@ -585,8 +626,11 @@ class _CommentTileState extends State<_CommentTile> {
                   if (_showReplies)
                     Column(
                       children: c.replies
-                          .map((r) =>
-                          _CommentTile(comment: r, isReply: true))
+                          .map((r) => _CommentTile(
+                        comment: r,
+                        isReply: true,
+                        onReplyTap: widget.onReplyTap,
+                      ))
                           .toList(),
                     ),
                 ],

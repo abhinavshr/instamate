@@ -58,4 +58,20 @@ class ReelApi {
       body: jsonEncode({'comment': comment}),
     );
   }
+
+  static Future<http.Response> postReelCommentReply(
+      String token,
+      String reelId,
+      String commentId,
+      String comment,
+      ) {
+    return http.post(
+      Uri.parse('$_baseUrl/reels/$reelId/comments/$commentId/reply'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'comment': comment}),
+    );
+  }
 }
