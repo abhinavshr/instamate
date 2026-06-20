@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:instamate/widget/reels/reel_comments_sheet.dart';
 import 'package:video_player/video_player.dart';
 import '../services/reel_service.dart';
-
-// ─── Data Model ──────────────────────────────────────────────────────────────
+import '../services/auth_service.dart';
 
 class ReelData {
   final int id;
@@ -63,8 +62,6 @@ class ReelData {
       username.isNotEmpty ? username[0].toUpperCase() : '?';
 }
 
-// ─── Feed Page ───────────────────────────────────────────────────────────────
-
 class ReelFeedPage extends StatefulWidget {
   const ReelFeedPage({super.key});
 
@@ -119,7 +116,6 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── Main content ──
           if (_loading)
             const Center(
                 child: CircularProgressIndicator(color: Colors.white))
@@ -161,8 +157,6 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
                   );
                 },
               ),
-
-          // ── Top bar ──
           SafeArea(
             child: Padding(
               padding:
@@ -191,8 +185,6 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
               ),
             ),
           ),
-
-          // ── Scroll indicator dots ──
           if (_reels.isNotEmpty)
             Positioned(
               right: 6,
@@ -223,8 +215,6 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
   }
 }
 
-// ─── Single Reel Card ────────────────────────────────────────────────────────
-
 class ReelCard extends StatefulWidget {
   final ReelData reel;
   final bool isActive;
@@ -245,9 +235,12 @@ class _ReelCardState extends State<ReelCard>
   bool _likeLoading = false;
   bool _viewRecorded = false;
 
-  // ── Like status fetch state ──
   bool _likeStatusLoading = false;
   bool _likeStatusError = false;
+
+  int? _currentUserId;
+  int? _viewCount;
+  bool _viewCountLoading = false;
 
   late AnimationController _heartCtrl;
   late Animation<double> _heartAnim;
@@ -259,30 +252,55 @@ class _ReelCardState extends State<ReelCard>
   @override
   void initState() {
     super.initState();
-    // Seed from feed data immediately (no flicker)
     _liked = widget.reel.isLiked;
     _likeCount = widget.reel.likeCount;
 
     _initVideo();
     _initHeartAnim();
 
-    // Verify real like status from server in background
     _fetchLikeStatus();
 
     if (widget.isActive) {
       _recordView();
     }
+
+    _loadCurrentUserAndViewCount();
   }
 
-  // ── View tracking ────────────────────────────────────────────────────────
+  Future<void> _loadCurrentUserAndViewCount() async {
+    final user = await AuthService.getUser();
+    if (!mounted || user == null) return;
+
+    final userId = user['id'] as int?;
+    setState(() => _currentUserId = userId);
+
+    if (userId != null && userId == widget.reel.userId) {
+      _fetchViewCount();
+    }
+  }
+
+  Future<void> _fetchViewCount() async {
+    setState(() => _viewCountLoading = true);
+    try {
+      final count =
+      await ReelService.getReelViewCount(widget.reel.id.toString());
+      if (mounted) {
+        setState(() {
+          _viewCount = count;
+          _viewCountLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('getReelViewCount error for reel ${widget.reel.id}: $e');
+      if (mounted) setState(() => _viewCountLoading = false);
+    }
+  }
 
   void _recordView() {
     if (_viewRecorded) return;
     _viewRecorded = true;
     ReelService.addReelView(widget.reel.id.toString());
   }
-
-  // ── Fetch real like status from server ───────────────────────────────────
 
   Future<void> _fetchLikeStatus() async {
     setState(() {
@@ -302,7 +320,6 @@ class _ReelCardState extends State<ReelCard>
         });
       }
     } catch (e) {
-      // On error, keep feed data as fallback — don't break the UI
       if (mounted) {
         setState(() {
           _likeStatusLoading = false;
@@ -312,8 +329,6 @@ class _ReelCardState extends State<ReelCard>
       }
     }
   }
-
-  // ─────────────────────────────────────────────────────────────────────────
 
   void _initHeartAnim() {
     _heartCtrl = AnimationController(
@@ -388,13 +403,9 @@ class _ReelCardState extends State<ReelCard>
     super.dispose();
   }
 
-  // ── Like helpers ──────────────────────────────────────────────────────────
-
   Future<void> _toggleLike() async {
-    // Block if like status is still loading or another toggle is in progress
     if (_likeLoading || _likeStatusLoading) return;
 
-    // Optimistic update
     setState(() {
       _liked = !_liked;
       _likeCount += _liked ? 1 : -1;
@@ -404,7 +415,6 @@ class _ReelCardState extends State<ReelCard>
     try {
       await ReelService.toggleReelLike(widget.reel.id.toString());
     } catch (e) {
-      // Revert on failure
       if (mounted) {
         setState(() {
           _liked = !_liked;
@@ -424,7 +434,6 @@ class _ReelCardState extends State<ReelCard>
   }
 
   void _onDoubleTap() {
-    // Only like, never unlike, on double-tap
     if (!_liked) _toggleLike();
     setState(() => _showHeart = true);
     _heartCtrl.forward(from: 0);
@@ -442,10 +451,7 @@ class _ReelCardState extends State<ReelCard>
     return '$n';
   }
 
-  // ── Like button widget — shows spinner while status is loading ────────────
-
   Widget _buildLikeButton() {
-    // While fetching real status, show a small spinner instead of the icon
     if (_likeStatusLoading) {
       return const Column(
         children: [
@@ -493,7 +499,6 @@ class _ReelCardState extends State<ReelCard>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ── Video, error state, or placeholder ──
             _videoReady && _videoCtrl != null
                 ? Positioned.fill(
               child: FittedBox(
@@ -512,15 +517,11 @@ class _ReelCardState extends State<ReelCard>
                 child: _VideoErrorBackground(reel: reel))
                 : Positioned.fill(
                 child: _FallbackBackground(reel: reel)),
-
-            // ── Pause icon ──
             if (_isPaused)
               const Center(
                 child: Icon(Icons.pause_circle_filled,
                     color: Colors.white54, size: 72),
               ),
-
-            // ── Double-tap heart burst ──
             if (_showHeart)
               Center(
                 child: AnimatedBuilder(
@@ -532,8 +533,6 @@ class _ReelCardState extends State<ReelCard>
                   ),
                 ),
               ),
-
-            // ── Bottom overlay gradient ──
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -550,14 +549,11 @@ class _ReelCardState extends State<ReelCard>
                 ),
               ),
             ),
-
-            // ── Right-side action buttons ──
             Positioned(
               right: 10,
               bottom: 50,
               child: Column(
                 children: [
-                  // Like button — uses dedicated builder for loading state
                   GestureDetector(
                     onTap: (_likeLoading || _likeStatusLoading)
                         ? null
@@ -589,8 +585,6 @@ class _ReelCardState extends State<ReelCard>
                 ],
               ),
             ),
-
-            // ── Bottom-left metadata ──
             Positioned(
               left: 14,
               right: 70,
@@ -630,6 +624,32 @@ class _ReelCardState extends State<ReelCard>
                     ),
                   const SizedBox(height: 10),
                   _AudioTicker(audioName: "${reel.username}'s audio"),
+                  if (_currentUserId != null &&
+                      _currentUserId == reel.userId) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.visibility_outlined,
+                            color: Colors.white54, size: 14),
+                        const SizedBox(width: 4),
+                        if (_viewCountLoading)
+                          const Text(
+                            '...',
+                            style: TextStyle(
+                                color: Colors.white54, fontSize: 12),
+                          )
+                        else
+                          Text(
+                            '${_viewCount ?? 0} views',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -639,8 +659,6 @@ class _ReelCardState extends State<ReelCard>
     );
   }
 }
-
-// ─── Fallback background while video loads ───────────────────────────────────
 
 class _FallbackBackground extends StatelessWidget {
   final ReelData reel;
@@ -667,8 +685,6 @@ class _FallbackBackground extends StatelessWidget {
     );
   }
 }
-
-// ─── Error background when video fails to load ───────────────────────────────
 
 class _VideoErrorBackground extends StatelessWidget {
   final ReelData reel;
@@ -702,8 +718,6 @@ class _VideoErrorBackground extends StatelessWidget {
     );
   }
 }
-
-// ─── Avatar ──────────────────────────────────────────────────────────────────
 
 class _Avatar extends StatelessWidget {
   final ReelData reel;
@@ -751,8 +765,6 @@ class _InitialFallback extends StatelessWidget {
   }
 }
 
-// ─── Action Button ───────────────────────────────────────────────────────────
-
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -795,8 +807,6 @@ class _ActionButton extends StatelessWidget {
     );
   }
 }
-
-// ─── Spinning Disc ───────────────────────────────────────────────────────────
 
 class _SpinningDisc extends StatefulWidget {
   final Color color;
@@ -859,8 +869,6 @@ class _SpinningDiscState extends State<_SpinningDisc>
   }
 }
 
-// ─── Follow Chip ─────────────────────────────────────────────────────────────
-
 class _FollowChip extends StatefulWidget {
   final Color accentColor;
   const _FollowChip({required this.accentColor});
@@ -899,8 +907,6 @@ class _FollowChipState extends State<_FollowChip> {
     );
   }
 }
-
-// ─── Audio Ticker ────────────────────────────────────────────────────────────
 
 class _AudioTicker extends StatefulWidget {
   final String audioName;
@@ -950,8 +956,6 @@ class _AudioTickerState extends State<_AudioTicker>
     );
   }
 }
-
-// ─── Animation helper ────────────────────────────────────────────────────────
 
 class Sequence<T> extends Animation<T> with AnimationWithParentMixin<T> {
   final List<Animation<T>> _children;

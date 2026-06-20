@@ -174,4 +174,30 @@ class ReelService {
       print('❌ addReelView error: $e');
     }
   }
+
+  static Future<int> getReelViewCount(String reelId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await ReelApi.getReelViewCount(token, reelId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data['views'] as int;
+      }
+
+      if (response.statusCode == 403) {
+        throw Exception(data['message'] ?? 'Not allowed to view this analytics');
+      }
+
+      if (response.statusCode == 404) {
+        throw Exception(data['message'] ?? 'Reel not found');
+      }
+
+      throw Exception(data['message'] ?? 'Failed to fetch view count');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

@@ -111,4 +111,14 @@ class ReelApi {
       },
     );
   }
+
+  static Future<http.Response> getReelViewCount(String token, String reelId) {
+    return http.get(
+      Uri.parse('$_baseUrl/reels/$reelId/views'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
