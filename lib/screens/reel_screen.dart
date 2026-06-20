@@ -104,6 +104,15 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
     }
   }
 
+  void _onReelDeleted(int reelId) {
+    setState(() {
+      _reels.removeWhere((r) => r.id == reelId);
+      if (_reelIndex >= _reels.length && _reels.isNotEmpty) {
+        _reelIndex = _reels.length - 1;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -154,6 +163,7 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
                     key: ValueKey(_reels[index].id),
                     reel: _reels[index],
                     isActive: index == _reelIndex,
+                    onDeleted: _onReelDeleted,
                   );
                 },
               ),
@@ -218,8 +228,14 @@ class _ReelFeedPageState extends State<ReelFeedPage> {
 class ReelCard extends StatefulWidget {
   final ReelData reel;
   final bool isActive;
+  final void Function(int reelId)? onDeleted;
 
-  const ReelCard({super.key, required this.reel, required this.isActive});
+  const ReelCard({
+    super.key,
+    required this.reel,
+    required this.isActive,
+    this.onDeleted,
+  });
 
   @override
   State<ReelCard> createState() => _ReelCardState();
@@ -485,6 +501,86 @@ class _ReelCardState extends State<ReelCard>
     );
   }
 
+  Future<void> _confirmAndDeleteReel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        title: const Text('Delete reel?',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete',
+                style: TextStyle(color: Color(0xFFFF3040))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ReelService.deleteReel(widget.reel.id.toString());
+      if (mounted) {
+        widget.onDeleted?.call(widget.reel.id);
+      }
+    } catch (e) {
+      debugPrint('❌ Delete reel error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete reel. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showReelOptionsMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading:
+              const Icon(Icons.delete_outline, color: Color(0xFFFF3040)),
+              title: const Text('Delete reel',
+                  style: TextStyle(color: Color(0xFFFF3040))),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmAndDeleteReel();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.close, color: Colors.white54),
+              title: const Text('Cancel',
+                  style: TextStyle(color: Colors.white54)),
+              onTap: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final reel = widget.reel;
@@ -549,6 +645,26 @@ class _ReelCardState extends State<ReelCard>
                 ),
               ),
             ),
+            if (_currentUserId != null && _currentUserId == reel.userId)
+              Positioned(
+                top: 56,
+                right: 8,
+                child: SafeArea(
+                  bottom: false,
+                  child: GestureDetector(
+                    onTap: () => _showReelOptionsMenu(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(Icons.more_vert,
+                          color: Colors.white, size: 22),
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               right: 10,
               bottom: 50,
