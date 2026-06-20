@@ -121,4 +121,14 @@ class ReelApi {
       },
     );
   }
+
+  static Future<http.Response> deleteReel(String token, String reelId) {
+    return http.delete(
+      Uri.parse('$_baseUrl/reels/$reelId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
