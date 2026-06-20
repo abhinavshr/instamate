@@ -140,4 +140,22 @@ class ReelService {
       rethrow;
     }
   }
+
+  static Future<String> toggleReelCommentLike(String commentId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await ReelApi.toggleReelCommentLike(token, commentId);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return data['message']; // "Comment liked" or "Comment unliked"
+      }
+
+      throw Exception(data['message'] ?? 'Failed to toggle comment like');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

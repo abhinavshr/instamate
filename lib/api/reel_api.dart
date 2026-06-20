@@ -88,4 +88,17 @@ class ReelApi {
       },
     );
   }
+
+  static Future<http.Response> toggleReelCommentLike(
+      String token,
+      String commentId,
+      ) {
+    return http.post(
+      Uri.parse('$_baseUrl/reels/comments/$commentId/like'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }

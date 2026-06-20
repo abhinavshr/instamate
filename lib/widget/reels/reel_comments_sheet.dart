@@ -600,6 +600,8 @@ class _CommentTileState extends State<_CommentTile> {
   late bool _liked;
   late int _likeCount;
   bool _showReplies = false;
+  bool _likeLoading = false;
+
 
   @override
   void initState() {
@@ -608,11 +610,34 @@ class _CommentTileState extends State<_CommentTile> {
     _likeCount = widget.comment.likeCount;
   }
 
-  void _toggleLike() {
+  Future<void> _toggleLike() async {
+    if (_likeLoading) return;
+
     setState(() {
       _liked = !_liked;
       _likeCount += _liked ? 1 : -1;
+      _likeLoading = true;
     });
+
+    try {
+      await ReelService.toggleReelCommentLike(widget.comment.id.toString());
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _liked = !_liked;
+          _likeCount += _liked ? 1 : -1;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update like. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _likeLoading = false);
+    }
   }
 
   @override
