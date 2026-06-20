@@ -109,6 +109,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   List<CommentData> _comments = [];
   bool _loading = true;
   String? _error;
+  bool _posting = false;
 
   @override
   void initState() {
@@ -366,10 +367,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   style:
                   const TextStyle(color: Colors.white, fontSize: 14),
                   maxLines: null,
+                  cursorColor: Colors.white,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) => _submitComment(),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
+                    filled: true,
+                    fillColor: Colors.transparent,
                     hintText: 'Add a comment…',
                     hintStyle:
                     TextStyle(color: Colors.white38, fontSize: 14),
@@ -384,6 +388,16 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               valueListenable: _inputCtrl,
               builder: (_, val, __) {
                 final hasText = val.text.trim().isNotEmpty;
+                if (_posting) {
+                  return const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF3897F0),
+                      strokeWidth: 2,
+                    ),
+                  );
+                }
                 return GestureDetector(
                   onTap: hasText ? _submitComment : null,
                   child: AnimatedOpacity(
@@ -407,12 +421,57 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     );
   }
 
-  void _submitComment() {
+  Future<void> _submitComment() async {
     final text = _inputCtrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _posting) return;
+
     _inputCtrl.clear();
     _focusNode.unfocus();
-    // TODO: wire to post comment API
+
+    setState(() => _posting = true);
+
+    try {
+      final result =
+      await ReelService.postReelComment(widget.reelId.toString(), text);
+
+      // Try to parse the new comment from the response, fall back to refetch
+      final newCommentJson = result['comment'] as Map<String, dynamic>?;
+
+      if (mounted) {
+        setState(() {
+          if (newCommentJson != null) {
+            _comments.insert(0, CommentData.fromJson(newCommentJson));
+          }
+          _posting = false;
+        });
+
+        // If the API didn't return the created comment, just refresh the list
+        if (newCommentJson == null) {
+          _fetchComments();
+        } else {
+          // Scroll to top so the new comment is visible
+          if (_scrollCtrl.hasClients) {
+            _scrollCtrl.animateTo(
+              0,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Post comment error: $e');
+      if (mounted) {
+        setState(() => _posting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to post comment. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ReelApi {
@@ -40,6 +41,21 @@ class ReelApi {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
+    );
+  }
+
+  static Future<http.Response> postReelComment(
+      String token,
+      String reelId,
+      String comment,
+      ) {
+    return http.post(
+      Uri.parse('$_baseUrl/reels/$reelId/comments'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'comment': comment}),
     );
   }
 }
