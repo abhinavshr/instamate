@@ -122,4 +122,22 @@ class ReelService {
       rethrow;
     }
   }
+
+  static Future<void> deleteReelComment(String reelId, String commentId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await ReelApi.deleteReelComment(token, reelId, commentId);
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      }
+
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to delete comment');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

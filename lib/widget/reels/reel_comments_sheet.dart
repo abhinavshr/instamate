@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:instamate/services/reel_service.dart';
-
-// ─── Data Model ──────────────────────────────────────────────────────────────
+import 'package:instamate/services/auth_service.dart';
 
 class CommentData {
   final int id;
@@ -76,8 +75,6 @@ class CommentData {
   }
 }
 
-// ─── Entry point ─────────────────────────────────────────────────────────────
-
 void showCommentsSheet(BuildContext context, int reelId, int commentCount) {
   showModalBottomSheet(
     context: context,
@@ -88,8 +85,6 @@ void showCommentsSheet(BuildContext context, int reelId, int commentCount) {
         _CommentsSheet(reelId: reelId, commentCount: commentCount),
   );
 }
-
-// ─── Sheet ───────────────────────────────────────────────────────────────────
 
 class _CommentsSheet extends StatefulWidget {
   final int reelId;
@@ -111,10 +106,12 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   String? _error;
   bool _posting = false;
   CommentData? _replyingTo;
+  int? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _fetchComments();
   }
 
@@ -124,6 +121,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     _focusNode.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final user = await AuthService.getUser();
+    if (mounted && user != null) {
+      setState(() => _currentUserId = user['id'] as int?);
+    }
   }
 
   Future<void> _fetchComments() async {
@@ -140,13 +144,63 @@ class _CommentsSheetState extends State<_CommentsSheet> {
         });
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ Comments error: $e');        // <-- add this
-      debugPrint('❌ Stack: $stackTrace');         // <-- and this
+      debugPrint('❌ Comments error: $e');
+      debugPrint('❌ Stack: $stackTrace');
       if (mounted) {
         setState(() {
           _error = e.toString();
           _loading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _deleteComment(CommentData comment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C2C),
+        title: const Text('Delete comment?',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete',
+                style: TextStyle(color: Color(0xFFFF3040))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ReelService.deleteReelComment(
+        widget.reelId.toString(),
+        comment.id.toString(),
+      );
+      if (mounted) {
+        await _fetchComments();
+      }
+    } catch (e) {
+      debugPrint('❌ Delete comment error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete comment. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     }
   }
@@ -220,12 +274,12 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   Widget _buildBody() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2),
+        child:
+        CircularProgressIndicator(color: Colors.white38, strokeWidth: 2),
       );
     }
 
     if (_error != null) {
-      // Determine error type for accurate messaging
       final isNetworkError = _error!.toLowerCase().contains('socket') ||
           _error!.toLowerCase().contains('connection') ||
           _error!.toLowerCase().contains('network') ||
@@ -244,14 +298,18 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isNetworkError ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+                isNetworkError
+                    ? Icons.wifi_off_rounded
+                    : Icons.error_outline_rounded,
                 color: Colors.white38,
                 size: 40,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              isNetworkError ? 'No Internet Connection' : 'Something Went Wrong',
+              isNetworkError
+                  ? 'No Internet Connection'
+                  : 'Something Went Wrong',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -274,7 +332,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
             GestureDetector(
               onTap: _fetchComments,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 11),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 28, vertical: 11),
                 decoration: BoxDecoration(
                   color: const Color(0xFF3897F0),
                   borderRadius: BorderRadius.circular(24),
@@ -333,10 +392,12 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       itemCount: _comments.length,
       itemBuilder: (_, i) => _CommentTile(
         comment: _comments[i],
+        currentUserId: _currentUserId,
         onReplyTap: (parent) {
           setState(() => _replyingTo = parent);
           _focusNode.requestFocus();
         },
+        onDeleteTap: _deleteComment,
       ),
     );
   }
@@ -399,7 +460,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                     child: TextField(
                       controller: _inputCtrl,
                       focusNode: _focusNode,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      style:
+                      const TextStyle(color: Colors.white, fontSize: 14),
                       maxLines: null,
                       cursorColor: Colors.white,
                       textInputAction: TextInputAction.send,
@@ -515,14 +577,20 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   }
 }
 
-// ─── Comment Tile ─────────────────────────────────────────────────────────────
-
 class _CommentTile extends StatefulWidget {
   final CommentData comment;
   final bool isReply;
+  final int? currentUserId;
   final void Function(CommentData parent)? onReplyTap;
+  final void Function(CommentData comment)? onDeleteTap;
 
-  const _CommentTile({required this.comment, this.isReply = false, this.onReplyTap,});
+  const _CommentTile({
+    required this.comment,
+    this.isReply = false,
+    this.currentUserId,
+    this.onReplyTap,
+    this.onDeleteTap,
+  });
 
   @override
   State<_CommentTile> createState() => _CommentTileState();
@@ -550,123 +618,141 @@ class _CommentTileState extends State<_CommentTile> {
   @override
   Widget build(BuildContext context) {
     final c = widget.comment;
+    final isOwner =
+        widget.currentUserId != null && c.userId == widget.currentUserId;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(widget.isReply ? 56 : 16, 6, 16, 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _CommentAvatar(comment: c),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      c.username,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+    return GestureDetector(
+      onLongPress: isOwner ? () => widget.onDeleteTap?.call(c) : null,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(widget.isReply ? 56 : 16, 6, 16, 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CommentAvatar(comment: c),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        c.username,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      c.relativeTime,
-                      style: const TextStyle(
-                          color: Colors.white38, fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  c.comment,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 14, height: 1.4),
-                ),
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: () => widget.onReplyTap?.call(c),
-                  child: const Text(
-                    'Reply',
-                    style: TextStyle(
-                      color: Colors.white38,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                      const SizedBox(width: 6),
+                      Text(
+                        c.relativeTime,
+                        style: const TextStyle(
+                            color: Colors.white38, fontSize: 12),
+                      ),
+                    ],
                   ),
-                ),
-                if (c.replies.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _showReplies = !_showReplies),
-                    child: Row(
-                      children: [
-                        Container(
-                            width: 24,
-                            height: 1,
-                            color: Colors.white38),
-                        const SizedBox(width: 8),
-                        Text(
-                          _showReplies
-                              ? 'Hide replies'
-                              : 'View ${c.replies.length} ${c.replies.length == 1 ? 'reply' : 'replies'}',
-                          style: const TextStyle(
-                            color: Colors.white60,
+                  const SizedBox(height: 3),
+                  Text(
+                    c.comment,
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 14, height: 1.4),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => widget.onReplyTap?.call(c),
+                        child: const Text(
+                          'Reply',
+                          style: TextStyle(
+                            color: Colors.white38,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                      ),
+                      if (isOwner) ...[
+                        const SizedBox(width: 16),
+                        GestureDetector(
+                          onTap: () => widget.onDeleteTap?.call(c),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ],
-                    ),
+                    ],
                   ),
-                  if (_showReplies)
-                    Column(
-                      children: c.replies
-                          .map((r) => _CommentTile(
-                        comment: r,
-                        isReply: true,
-                        onReplyTap: widget.onReplyTap,
-                      ))
-                          .toList(),
+                  if (c.replies.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () =>
+                          setState(() => _showReplies = !_showReplies),
+                      child: Row(
+                        children: [
+                          Container(width: 24, height: 1, color: Colors.white38),
+                          const SizedBox(width: 8),
+                          Text(
+                            _showReplies
+                                ? 'Hide replies'
+                                : 'View ${c.replies.length} ${c.replies.length == 1 ? 'reply' : 'replies'}',
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    if (_showReplies)
+                      Column(
+                        children: c.replies
+                            .map((r) => _CommentTile(
+                          comment: r,
+                          isReply: true,
+                          currentUserId: widget.currentUserId,
+                          onReplyTap: widget.onReplyTap,
+                          onDeleteTap: widget.onDeleteTap,
+                        ))
+                            .toList(),
+                      ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: _toggleLike,
-            child: Column(
-              children: [
-                Icon(
-                  _liked ? Icons.favorite : Icons.favorite_border,
-                  color: _liked
-                      ? const Color(0xFFFF3040)
-                      : Colors.white54,
-                  size: 16,
-                ),
-                if (_likeCount > 0) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    '$_likeCount',
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 11),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: _toggleLike,
+              child: Column(
+                children: [
+                  Icon(
+                    _liked ? Icons.favorite : Icons.favorite_border,
+                    color: _liked ? const Color(0xFFFF3040) : Colors.white54,
+                    size: 16,
                   ),
+                  if (_likeCount > 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '$_likeCount',
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 11),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
-
-// ─── Comment Avatar ───────────────────────────────────────────────────────────
 
 class _CommentAvatar extends StatelessWidget {
   final CommentData comment;

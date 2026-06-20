@@ -74,4 +74,18 @@ class ReelApi {
       body: jsonEncode({'comment': comment}),
     );
   }
+
+  static Future<http.Response> deleteReelComment(
+      String token,
+      String reelId,
+      String commentId,
+      ) {
+    return http.delete(
+      Uri.parse('$_baseUrl/reels/$reelId/comments/$commentId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
