@@ -78,10 +78,7 @@ class ReelService {
     }
   }
 
-  static Future<Map<String, dynamic>> postReelComment(
-      String reelId,
-      String comment,
-      ) async {
+  static Future<void> postReelComment(String reelId, String comment) async {
     try {
       final token = await AuthService.getToken();
       if (token == null) throw Exception('User not authenticated');
@@ -90,10 +87,37 @@ class ReelService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return data;
+        return;
       }
 
       throw Exception(data['message'] ?? 'Failed to post comment');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  static Future<void> postReelCommentReply(
+      String reelId,
+      String commentId,
+      String comment,
+      ) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await ReelApi.postReelCommentReply(
+        token,
+        reelId,
+        commentId,
+        comment,
+      );
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return;
+      }
+
+      throw Exception(data['message'] ?? 'Failed to post reply');
     } catch (e) {
       rethrow;
     }
