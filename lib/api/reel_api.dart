@@ -101,4 +101,14 @@ class ReelApi {
       },
     );
   }
+
+  static Future<http.Response> addReelView(String token, String reelId) {
+    return http.post(
+      Uri.parse('$_baseUrl/reels/$reelId/view'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
 }
