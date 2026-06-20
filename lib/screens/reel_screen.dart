@@ -243,6 +243,7 @@ class _ReelCardState extends State<ReelCard>
   bool _showHeart = false;
   bool _isPaused = false;
   bool _likeLoading = false;
+  bool _viewRecorded = false;
 
   // ── Like status fetch state ──
   bool _likeStatusLoading = false;
@@ -267,6 +268,18 @@ class _ReelCardState extends State<ReelCard>
 
     // Verify real like status from server in background
     _fetchLikeStatus();
+
+    if (widget.isActive) {
+      _recordView();
+    }
+  }
+
+  // ── View tracking ────────────────────────────────────────────────────────
+
+  void _recordView() {
+    if (_viewRecorded) return;
+    _viewRecorded = true;
+    ReelService.addReelView(widget.reel.id.toString());
   }
 
   // ── Fetch real like status from server ───────────────────────────────────
@@ -354,6 +367,11 @@ class _ReelCardState extends State<ReelCard>
   @override
   void didUpdateWidget(ReelCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (widget.isActive && !oldWidget.isActive) {
+      _recordView();
+    }
+
     if (!mounted || _videoCtrl == null || !_videoReady) return;
 
     if (widget.isActive && !_isPaused) {

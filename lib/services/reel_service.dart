@@ -158,4 +158,20 @@ class ReelService {
       rethrow;
     }
   }
+
+  static Future<void> addReelView(String reelId) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) return;
+
+      final response = await ReelApi.addReelView(token, reelId);
+
+      if (response.statusCode != 200) {
+        final data = jsonDecode(response.body);
+        throw Exception(data['message'] ?? 'Failed to record view');
+      }
+    } catch (e) {
+      print('❌ addReelView error: $e');
+    }
+  }
 }
