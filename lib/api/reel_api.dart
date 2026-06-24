@@ -131,4 +131,15 @@ class ReelApi {
       },
     );
   }
+
+  static Future<http.Response> shareReel(String token, String reelId, {String? sharedTo}) {
+    return http.post(
+      Uri.parse('$_baseUrl/reels/$reelId/share'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'sharedTo': sharedTo}), 
+    );
+  }
 }
