@@ -15,6 +15,7 @@ class ReelData {
   final int likeCount;
   final int commentCount;
   final bool isLiked;
+  final int shareCount;
 
   const ReelData({
     required this.id,
@@ -27,6 +28,7 @@ class ReelData {
     required this.likeCount,
     required this.commentCount,
     required this.isLiked,
+    this.shareCount = 0,
   });
 
   factory ReelData.fromJson(Map<String, dynamic> json) {
@@ -42,6 +44,7 @@ class ReelData {
       likeCount: json['like_count'] as int? ?? 0,
       commentCount: json['comment_count'] as int? ?? 0,
       isLiked: json['is_liked'] as bool? ?? false,
+      shareCount: json['share_count'] as int? ?? 0,
     );
   }
 
@@ -243,8 +246,8 @@ class ReelCard extends StatefulWidget {
 
 class _ReelCardState extends State<ReelCard>
     with SingleTickerProviderStateMixin {
-  late bool _liked;
-  late int _likeCount;
+  bool _liked = false;
+  int _likeCount = 0;
   bool _saved = false;
   bool _showHeart = false;
   bool _isPaused = false;
@@ -253,6 +256,9 @@ class _ReelCardState extends State<ReelCard>
 
   bool _likeStatusLoading = false;
   bool _likeStatusError = false;
+
+  bool _shareLoading = false;
+  int _shareCount = 0;
 
   int? _currentUserId;
   int? _viewCount;
@@ -270,6 +276,7 @@ class _ReelCardState extends State<ReelCard>
     super.initState();
     _liked = widget.reel.isLiked;
     _likeCount = widget.reel.likeCount;
+    _shareCount = widget.reel.shareCount;
 
     _initVideo();
     _initHeartAnim();
@@ -449,6 +456,41 @@ class _ReelCardState extends State<ReelCard>
     }
   }
 
+  Future<void> _shareReel() async {
+    if (_shareLoading) return;
+
+    setState(() => _shareLoading = true);
+
+    try {
+      await ReelService.shareReel(widget.reel.id.toString());
+      if (mounted) {
+        setState(() => _shareCount += 1);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reel shared successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().contains('already shared')
+            ? 'You have already shared this reel'
+            : 'Failed to share reel. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _shareLoading = false);
+    }
+  }
+
   void _onDoubleTap() {
     if (!_liked) _toggleLike();
     setState(() => _showHeart = true);
@@ -535,7 +577,7 @@ class _ReelCardState extends State<ReelCard>
         widget.onDeleted?.call(widget.reel.id);
       }
     } catch (e) {
-      debugPrint('❌ Delete reel error: $e');
+      debugPrint('Delete reel error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -685,8 +727,9 @@ class _ReelCardState extends State<ReelCard>
                   const SizedBox(height: 20),
                   _ActionButton(
                     icon: Icons.send_outlined,
-                    label: 'Share',
-                    onTap: () {},
+                    label: _fmtNum(_shareCount),
+                    onTap: _shareReel,
+                    loading: _shareLoading,
                   ),
                   const SizedBox(height: 20),
                   _ActionButton(

@@ -218,4 +218,30 @@ class ReelService {
       rethrow;
     }
   }
+
+  static Future<String> shareReel(String reelId, {String? sharedTo}) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
+
+      final response = await ReelApi.shareReel(token, reelId, sharedTo: sharedTo);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201) {
+        return data['message'];
+      }
+
+      if (response.statusCode == 400) {
+        throw Exception(data['message']);
+      }
+
+      if (response.statusCode == 404) {
+        throw Exception(data['message']);
+      }
+
+      throw Exception(data['message'] ?? 'Failed to share reel');
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
